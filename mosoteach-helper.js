@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         云班课高效助手
 // @namespace    http://tampermonkey.net/
-// @version      1.22
+// @version      1.3
 // @description  添加下载按钮，可以按栏缩小范围进行模拟批量点击资源，批量下载资源，提高效率。【基于其他脚本修改（@name 蓝墨云班课（Moso Tech）资源下载；@author xfl03）。】【注意：执行完毕后需刷新页面】【只是出于个人原因开发，只做了chrome适配，其他浏览器可用，但具体操作会有一点不同】
 // @author       bellamy.n.h
 // @match        https://www.mosoteach.cn/web/index.php*
