@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         云班课高效助手
 // @namespace    http://tampermonkey.net/
-// @version      1.30
+// @version      1.31
 // @description  添加下载按钮，可以按栏缩小范围进行模拟批量点击资源，批量下载资源，提高效率。【基于其他脚本修改（@name 蓝墨云班课（Moso Tech）资源下载；@author xfl03）。】【注意：执行完毕后需刷新页面】【只是出于个人原因开发，只做了chrome适配，其他浏览器可用，但具体操作会有一点不同】
 // @author       bellamy.n.h
 // @match        https://www.mosoteach.cn/web/index.php*
@@ -9,7 +9,15 @@
 // ==/UserScript==
 
 
-(function() {
+/**
+ * Log
+ *
+ * Version 1.31
+ * 修复可能存在的Bug (页面无法自动关闭)
+ * 
+ */
+
+$(function() {
     'use strict';
 
 /**
@@ -96,7 +104,7 @@
 // 模拟点击  part
     $('<div id="functionAreaTitle" style="padding:0 20px">\
            <div class="clear20"></div>\
-           <HR style="FILTER: alpha(opacity=100,finishopacity=0,style=3)" width="100%" color=#0BD SIZE=3>\
+           <HR style="FILTER: alpha(opacity=100,finishopacity=0,style=3)" width="100%" color=#0BD SIZE=4>\
            <div class="clear10"></div>\
           <div class="res-row-title">\
               <span style="color: #0BD;font-weight:600; font-size:16px"> 功能区 </span>\
@@ -252,7 +260,24 @@
 
         console.log(chosenID  + "映射值 <-- 输入值" + $("#bar_index").val());
     })
-// 指定下标区间，进行模拟点击（用于资源量较大,有漏掉的情况）
+
+
+/**
+ * Main body
+ * 
+ */
+
+    // Refresh page tips function
+    function refreshPage(){
+        alert("操作完成，请小可爱刷新页面查看结果！！！");
+    }
+    
+
+/**
+ * 指定下标区间，进行模拟点击（用于资源量较大,有漏掉的情况）
+ * 
+ */
+
     $(document).on('click', '#confirm', function() {
 
         var conf_str = false;
@@ -296,7 +321,10 @@
 //         location.reload();
         console.log("共检索到 "+ list.length + "条； 成功执行 " + succNum + " 次！ 失败 " + failNum + " 次！ 操作范围：从第 " + actualStartIndex + " 条 至 第 " + actualEndIndex +" 条。");
         $(".indexNum").val("");
-        alert("操作完成，请小可爱刷新页面查看结果！！！");
+        /**
+         * For CRX
+         */
+        setTimeout(refreshPage,0);
        }else{
            alert("已取消操作！");
        }
@@ -305,7 +333,12 @@
 
 
     });
-// 模拟正序点击全部资源
+
+
+/**
+ * 模拟正序点击全部资源
+ * 
+ */
     $(document).on('click', '.forward', function() {
         var conf_str = false;
         conf_str = confirm("小可爱，你即将执行“正序点击全部资源”操作，如果资源量较大（> 1000），耗时就会较久，打开的页面也会较多哦！不过都会自动关闭的哦！！！" + "\n\n" + "小可爱，资源较多时，还请三思啊！！！" + "\n\n" + "你是否要执行？");
@@ -332,12 +365,18 @@
             }
         }
         console.log("正序点击： 共检索到 "+ list.length + "条； 成功执行 " + succNum + " 次！ 失败 " + failNum + " 次！" );
-        alert("操作完成，请小可爱刷新页面查看结果！！！");
+        setTimeout(refreshPage,0);
        }else{
        alert("已取消操作！");
        }
     });
-// 模拟倒序点击全部资源
+
+
+/**
+ * 模拟倒序点击全部资源
+ * 
+ */
+
     $(document).on('click', '.reverse', function() {
                 var conf_str = false;
         conf_str = confirm("小可爱，你即将执行“倒序点击全部资源”操作，如果资源量较大（> 1000），耗时就会较久，打开的页面也会较多哦！不过都会自动关闭的哦！！！" + "\n\n" + "小可爱，资源较多时，还请三思啊！！！" + "\n\n" + "你是否要执行？");
@@ -363,12 +402,17 @@
             }
         }
         console.log("倒序点击：  共检索到 "+ list.length + "条； 成功执行 " + succNum + " 次！ 失败 " + failNum + " 次！" );
-        alert("操作完成，请小可爱刷新页面查看结果！！！");
+        setTimeout(refreshPage,0);
        }else{
        alert("已取消操作！");
        }
     });
-// 指定下标区间，进行批量下载
+
+
+/**
+ * 指定下标区间，进行批量下载
+ * 
+ */
     $(document).on('click', '#downloadSrc', function() {
 
         var conf_str = false;
@@ -406,11 +450,11 @@
         }
         console.log("共检索到 "+ list.length + "条； 成功执行 " + succNum + " 次！ 失败 " + failNum + " 次！ 操作范围：从第 " + actualStartIndex + " 条 至 第 " + actualEndIndex +" 条。");
         $(".indexNum").val("");
-        alert("操作完成，请小可爱刷新页面查看结果！！！");
+        setTimeout(refreshPage,0);
        }else{
        alert("已取消操作！");
        }
     });
 
 
-})();
+});
