@@ -1,21 +1,16 @@
 // ==UserScript==
 // @name         云班课高效助手
-// @namespace    http://tampermonkey.net/
-// @version      1.31
-// @description  添加下载按钮，可以按栏缩小范围进行模拟批量点击资源，批量下载资源，提高效率。【基于其他脚本修改（@name 蓝墨云班课（Moso Tech）资源下载；@author xfl03）。】【注意：执行完毕后需刷新页面】【只是出于个人原因开发，只做了chrome适配，其他浏览器可用，但具体操作会有一点不同】
 // @author       bellamy.n.h
+// @namespace    http://tampermonkey.net/
+// @version      1.32
+// @description  添加下载按钮，可批量下载资源，可按资源栏缩小范围进行批量点击资源，高效使用云班课。【***请勿滥用***】【注意：执行完毕后需刷新页面】【自用脚本，根据个人需求开发，只做了chrome适配，其他浏览器可用，但具体操作会有点不同】【如果好用就留着用吧😀，不好用给点建议也好🙇‍】
 // @match        https://www.mosoteach.cn/web/index.php*
+// @include      *://www.mosoteach.cn/web/index.php*
+// @note         Version 1.32    优化操作反馈 （可以重置已选择的资源栏数）
+// @note         Version 1.31    修复可能存在的Bug (页面无法自动关闭)
 // @grant        none
 // ==/UserScript==
 
-
-/**
- * Log
- *
- * Version 1.31
- * 修复可能存在的Bug (页面无法自动关闭)
- * 
- */
 
 $(function() {
     'use strict';
@@ -83,25 +78,25 @@ $(function() {
   #mode-download{ background:rgba(0, 151, 179,0.7);}
   #confirm{ background:rgba(0, 151, 179,0.7);}
   #downloadSrc{ background:rgba(0, 151, 179,0.7);}
-  #choose{ background:rgba(0, 151, 179,0.7);}
+  #choose{ background:rgba(204, 0, 0,0.6);}
   //#refresh{ background:rgba(0, 151, 179,0.7);}
 </style>`;
     $(styleTag).appendTo('head');
 
-//为每个资源添加下载按钮
+    //为每个资源添加下载按钮
     $(".res-row-open-enable").each(function() {
         if ($(this).find(".download-res-button").length > 0) return;//如果已经存在下载按钮（例如mp3），则不再添加
         $(this).find("ul").html('<li class="download-ress download-res-button">下载</li>' + $(this).find("ul").html());
-//         $(this).find("ul").html('<li class="forward">正序点击</li>' + $(this).find("ul").html());
-//         $(this).find("ul").html('<li class="reverse">倒序点击</li>' + $(this).find("ul").html());
+        // $(this).find("ul").html('<li class="forward">正序点击</li>' + $(this).find("ul").html());
+        // $(this).find("ul").html('<li class="reverse">倒序点击</li>' + $(this).find("ul").html());
     });
-//单个资源下载
+    //单个资源下载
     $(document).on('click', '.download-ress', function() {
             var resHref = $(this).parents(".res-row-open-enable").attr('data-href');
             window.open(resHref);
     });
 
-// 模拟点击  part
+    // 模拟点击  part
     $('<div id="functionAreaTitle" style="padding:0 20px">\
            <div class="clear20"></div>\
            <HR style="FILTER: alpha(opacity=100,finishopacity=0,style=3)" width="100%" color=#0BD SIZE=4>\
@@ -143,7 +138,7 @@ $(function() {
         <div class="hide-div" data-status="N" data-sort="1000" style="display: none;">\
           <form class="appendTxt res-row" style="padding:20px 20px 0px 20px ; !important">\
               <input id="bar_index" placeholder="输入要点击的栏号（从 1 开始）" style="border:1px solid #0BD; border-radius:8px;width:20%">&nbsp\
-              <input id="choose" class="helper-btn helper-btn-a"  type="button" value="确认选择">\
+              <input id="choose" class="helper-btn helper-btn-a helper-btn-b"  type="button" value="重置">\
          </form>\
         </div>\
       </div>\
@@ -194,42 +189,44 @@ $(function() {
        </div>\
     </div>\
       ').insertAfter("#res-view-way");
-//     初始化
+    // 初始化
     $("#module-1,#module-2").css("display","none");
     $("#confirm, #downloadSrc, #mode-click, #mode-download").css("display","inline");
-// change mode
+    // change mode
     $(document).on('click','#mode-click',function(){
         $("#module-1, #module-2").css("display","block");
-//         等价于
-//         document.getElementById("module-1").style.display="block";
-//         document.getElementById("module-2").style.display="block";
-//         document.getElementById('confirm').style.display = document.getElementById('confirm').style.display=="inline"?"inline":"none";
+        //         等价于
+        //         document.getElementById("module-1").style.display="block";
+        //         document.getElementById("module-2").style.display="block";
+        //         document.getElementById('confirm').style.display = document.getElementById('confirm').style.display=="inline"?"inline":"none";
         $("#downloadSrc, #mode-download").css("display","none");
-//         $("#mode-click").css({"background-color":"#0BD","color":"#fff"});
+        //         $("#mode-click").css({"background-color":"#0BD","color":"#fff"});
         $("#modeName").text("模拟点击");
         alert("操作提醒：\n"+"务必操作，否则请不要向下执行任何操作！！！\n" + "\n" + "（以下只是 chrome 浏览器操作步骤）" + "\n" + "  1. 新建 Tab 页\n"+"   -->\n"+"  2. 地址栏输入： chrome://settings/?search=downloads\n" +"   -->\n" + "  3. 打开 “下载前询问每个文件的保存位置” 右侧按钮");
     });
     $(document).on('click','#mode-download',function(){
         document.getElementById("module-1").style.display="block";
         $("#module-2, #confirm, #mode-click").css("display","none");
-//         $("#mode-download").css({"background-color":"#0BD","color":"#fff"});
+        //         $("#mode-download").css({"background-color":"#0BD","color":"#fff"});
         $("#modeName").text("批量下载");
         alert("操作提醒：\n"+"务必操作，否则请不要向下执行任何操作！！！\n" + "\n" + "（以下只是 chrome 浏览器操作步骤）" + "\n" + "  1. 新建 Tab 页\n"+"   -->\n"+"  2. 地址栏输入：chrome://settings/?search=downloads\n" +"   -->\n" + "  3. 关闭 “下载前询问每个文件的保存位置” 右侧按钮");
     });
     $(document).on('click','#reset',function(){
         $("#module-1,#module-2").css("display","none");
         $("#confirm, #downloadSrc, #mode-click, #mode-download").css("display","inline");
-//         $("#mode-download, #mode-click").css({"background-color":"#fff","color":"#000"});
+        //         $("#mode-download, #mode-click").css({"background-color":"#fff","color":"#000"});
         $("#modeName").text("未选择");
 
     });
-// 刷新
+    // 刷新
     $(document).on('click','#refresh',function(){location.reload()})
-//   给分栏添加 id 易于按栏操作
+    //   给分栏添加 id 易于按栏操作
     $(".res-row-box").each(function(i,e){$(this).attr('id','id_' + i)});
+    // 选择id 后，改变页面显示数据，以及改变按钮的状态
     var chosenID = ".res-row-box";
     $(document).on('click','#choose',function(){
-
+      var val = $("#choose").val();
+      if(val == "确认选择"){
         switch($("#bar_index").val()){
             case "1":chosenID = "#id_0";break;
             case "2":chosenID = "#id_1";break;
@@ -257,25 +254,37 @@ $(function() {
         var barID_str =  (barID > 0 && barID < 21) ? barID : "全选";
         alert("小可爱，你已将要操作的资源栏修改为： "+ barID_str);
         $("#barID").text(barID_str);
-
+        $("#choose").val("重置");
+          $("#choose").css('background-color','rgba(204, 0, 0,0.6)');
         console.log(chosenID  + "映射值 <-- 输入值" + $("#bar_index").val());
-    })
+
+      }else{
+        $("#bar_index").val("");
+        $("#choose").val("确认选择");
+        $("#choose").click();
+      }
+
+    });
+    // reset  bar_index
+    $('#bar_index').bind("input propertychange",function(event){
+        $("#choose").val("确认选择");
+        $("#choose").css('background-color','rgba(0, 151, 179,0.7)');
+    });
 
 
 /**
  * Main body
- * 
+ *
  */
 
     // Refresh page tips function
     function refreshPage(){
         alert("操作完成，请小可爱刷新页面查看结果！！！");
     }
-    
 
 /**
  * 指定下标区间，进行模拟点击（用于资源量较大,有漏掉的情况）
- * 
+ *
  */
 
     $(document).on('click', '#confirm', function() {
@@ -284,10 +293,10 @@ $(function() {
         conf_str = confirm("小可爱，你即将执行“模拟点击”操作！！！"  + "\n\n"+"根据选择资源数量的不同，会打开相应数量的页面，如果数量较多，请不要惊慌，因为这些页面会自动关闭的哦！！！"+ "\n\n" + "你是否按照上一个提示，进行了相应的操作？" + "\n\n" + "如果是，你是否要开始执行本次操作？");
        if(conf_str){
        //         以下五个等价，实现相同功能，但写法是逐步优化
-//         var list = document.getElementsByClassName("res-row-open-enable");
-//         var list = $(".res-row-open-enable");
-//         var list = $(".hide-div").children();
-//         var list = $(".res-row-box").children(".hide-div").children();
+           //         var list = document.getElementsByClassName("res-row-open-enable");
+           //         var list = $(".res-row-open-enable");
+           //         var list = $(".hide-div").children();
+           //         var list = $(".res-row-box").children(".hide-div").children();
         var list = $(chosenID).children(".hide-div").children();
         var succNum = 0;
         var failNum = 0;
@@ -437,7 +446,7 @@ $(function() {
                     alert("输入的资源栏数不在该页资源栏数的范围内，无法执行，请重新选择资源栏");
                     break;
                 }
-//              download('第' + i+1 + '个文件', tempUrl);
+                // download('第' + i+1 + '个文件', tempUrl);
                 win = window.open(tempUrl);
                 succNum++;
                 console.log(tempUrl);
