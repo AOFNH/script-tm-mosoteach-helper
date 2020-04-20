@@ -2,10 +2,11 @@
 // @name         云班课高效助手
 // @author       bellamy.n.h
 // @namespace    http://tampermonkey.net/
-// @version      1.40
-// @description  添加下载按钮，可批量下载资源，可按资源栏缩小范围进行批量点击资源，高效使用云班课。【***请勿滥用***】【注意：执行完毕后需刷新页面】【自用脚本，根据个人需求开发，只做了chrome适配，其他浏览器可用，但具体操作会有点不同】【如果好用就留着用吧😀，不好用给点建议也好🙇‍】
+// @version      1.50
+// @description  添加下载按钮，可批量下载资源，可按资源栏缩小范围进行批量处理资源，高效使用云班课。【***请勿滥用***】【注意：执行完毕后需刷新页面】【自用脚本，根据个人需求开发，只做了chrome适配，其他浏览器可用，但具体操作会有点不同】【如果好用就留着用吧😀，不好用给点建议也好🙇‍】
 // @match        https://www.mosoteach.cn/web/index.php*
 // @include      *://www.mosoteach.cn/web/index.php*
+// @note         Version 1.50    加强对输入值约束； 支持多栏处理； chrome浏览器自动打开 设置页面地址更改； 其他Bug修复。
 // @note         Version 1.40    优化代码；  新增浏览器类型判断，支持chrome浏览器自动打开 设置页面。
 // @note         Version 1.32    优化操作反馈 （可以重置已选择的资源栏数）
 // @note         Version 1.31    修复可能存在的Bug (页面无法自动关闭)
@@ -14,188 +15,296 @@
 
 
 $(function() {
-    'use strict';
+  'use strict';
 
-    /**
-    *  Determine the browser type
-    */
-    function browserType(){
+  /**
+   *  Determine the browser type
+   */
+  function browserType() {
     var userAgent = navigator.userAgent; //get browser userAgent string
     var isOpera = userAgent.indexOf("Opera") > -1;
     if (isOpera) {
-        return "Opera"
+      return "Opera"
     }; //is Opera or not
     if (userAgent.indexOf("Firefox") > -1) {
-        return "FF";
+      return "FF";
     } //is Firefox or not
-    if (userAgent.indexOf("Chrome") > -1){
-        return "Chrome";
+    if (userAgent.indexOf("Chrome") > -1) {
+      return "Chrome";
     }
     if (userAgent.indexOf("Safari") > -1) {
-        return "Safari";
+      return "Safari";
     } //is Safari or not
     if (userAgent.indexOf("compatible") > -1 && userAgent.indexOf("MSIE") > -1 && !isOpera) {
-        return "IE";
+      return "IE";
     }; //is IE or not
+  }
+  /**
+   *  sleep function
+   *  @param numberMillis -- 要睡眠的毫秒数
+   */
+  function sleep(numberMillis) {
+    var now = new Date();
+    var exitTime = now.getTime() + numberMillis;
+    while (true) {
+      now = new Date();
+      if (now.getTime() > exitTime)
+        return;
     }
-    /**
-    *  sleep function
-    *  @param numberMillis -- 要睡眠的毫秒数
-    */
-    function sleep(numberMillis) {
-        var now = new Date();
-        var exitTime = now.getTime() + numberMillis;
-        while (true) {
-            now = new Date();
-            if (now.getTime() > exitTime)
-                return;
-        }
-    }
+  }
 
-   /**
+  /**
+   * Remove duplicate value
+   */
+  function removeDuplicate(arr) {
+    let x = new Set(arr);
+    return [...x];
+  }
+  /**
    *   download resources function
    */
-   function download(name, href) {
-      var a = document.createElement("a"), //创建a标签
-          e = document.createEvent("MouseEvents"); //创建鼠标事件对象
-      e.initEvent("click", false, false); //初始化事件对象
-      a.href = href; //设置下载地址
-      a.download = name; //设置下载文件名
-      a.dispatchEvent(e); //给指定的元素，执行事件click事件
+  function download(name, href) {
+    var a = document.createElement("a"), //创建a标签
+      e = document.createEvent("MouseEvents"); //创建鼠标事件对象
+    e.initEvent("click", false, false); //初始化事件对象
+    a.href = href; //设置下载地址
+    a.download = name; //设置下载文件名
+    a.dispatchEvent(e); //给指定的元素，执行事件click事件
+  }
+
+  // Refresh page tips
+  function refreshPage() {
+    alert("操作完成，请小可爱刷新页面查看结果！！！");
+  }
+  //取消操作
+  function cancel() {
+    alert("已取消操作！");
+  }
+  /**
+   *  点击和下载前以弹窗二次确认
+   *  modeName
+   *  return boolean
+   **/
+  function popupComfirm(modeName) {
+    let conf_str = false;
+    conf_str = confirm("小可爱，你即将执行“" + modeName + "”操作！！！" + "\n\n" +
+      "根据选择资源数量的不同，会打开相应数量的页面，如果数量较多，请不要惊慌，因为这些页面会自动关闭的哦！！！" + "\n\n" +
+      "你是否按照上一个提示，进行了相应的操作？" + "\n\n" + "如果是，你是否要开始执行本次操作？");
+    return conf_str;
+  }
+
+  /**
+   * 数据清洗    inputString -> idsArr
+   */
+
+  function cleanData(inputString) {
+    //去除字符串中的所有空格
+    inputString.replace(/\s*/g,"");
+    //去掉首尾的 - 字符
+    if (inputString.charAt(0) == "-") {
+      if (inputString.charAt(inputString.length - 1) == "-")
+        inputString = inputString.substring(1, inputString.length - 1);
+      else
+        inputString = inputString.substring(1, inputString.length);
+    } else if (inputString.charAt(inputString.length - 1) == "-") {
+      inputString = inputString.substring(0, inputString.length - 1);
     }
-
-    // Refresh page tips
-    function refreshPage(){
-        alert("操作完成，请小可爱刷新页面查看结果！！！");
+    //console.log(inputString + "/" + inputString.charAt(0) +"/" + inputString.charAt(inputString.length-1));
+    //分割出要点击的栏号，存入数组，用于映射出对应的资源栏id
+    let idsArr = inputString.split("-");
+    //去重并排序
+    idsArr = removeDuplicate(idsArr).sort();
+    //去除超出资源栏总数的无效值
+    let temp = [];
+    for (let i = 0; i < idsArr.length; i++) {
+      // console.log("srcBarSum is" + srcBarSum);
+      if (idsArr[i] <= srcBarSum && idsArr[i] > 0) {
+        temp.push(idsArr[i]);
+        // console.log("temp is" + temp);
+      }
     }
+    // console.log("idsArr is" + idsArr);
+    return idsArr = temp;
 
-    /**
-    *  Click or download in bulk according to "isDownload"
-    */
-    function batch(isDownload){
-        var isDownloadMesg = isDownload == "false" ? "模拟点击" : "批量下载";
-        var conf_str = false;
-        conf_str = confirm("小可爱，你即将执行“" + isDownloadMesg + "”操作！！！"  + "\n\n"
-                           +"根据选择资源数量的不同，会打开相应数量的页面，如果数量较多，请不要惊慌，因为这些页面会自动关闭的哦！！！"+ "\n\n"
-                           + "你是否按照上一个提示，进行了相应的操作？" + "\n\n" + "如果是，你是否要开始执行本次操作？");
+  }
 
-       if(conf_str){
-       //  以下五个等价，实现相同功能，但写法是逐步优化
-       //  var list = document.getElementsByClassName("res-row-open-enable");
-       //  var list = $(".res-row-open-enable");
-       //  var list = $(".hide-div").children();
-       //  var list = $(".res-row-box").children(".hide-div").children();
-        var list = $(chosenID).children(".hide-div").children();
-        var succNum = 0;
-        var failNum = 0;
-        var tempUrl;
-        var win;
-        var startIndex = $("#head").val();
-        var endIndex = $("#tail").val();
-        var actualStartIndex = startIndex < list.length ? startIndex : list.length;//输入值超出资源总数的值，则将输入值置为总数的值
-        var actualEndIndex = endIndex < list.length ? endIndex : list.length;//输入值超出资源总数的值，则将输入值置为总数的值
-        for (var i = actualStartIndex-1; i < actualEndIndex; i++){
-            try{
-                try{
-                    tempUrl = list[i].getAttribute("data-href");
-                }catch(e){
-                    console.log(e.name + ": " + e.message );
-                    alert("输入的资源栏数不在该页资源栏数的范围内，无法执行，请重新选择资源栏");
-                    break;
-                }
-                win = window.open(tempUrl);
-                if(isDownload == 'false'){
-                   sleep(100);//睡眠，是为了确保每个资源都被正常获取
-                   win.close();
-                }
-                succNum++;
-                console.log(tempUrl);
-            }catch(e){
-                console.log(e.name + ": " + e.message );
-                console.log("该条未成功执行 ；URL :   "+ list[i].getAttribute("data-href"));
-                failNum++;
-                continue;
-            }
+  /**
+   *  根据模式名执行对应的批量处理操作
+   *
+   *  点击确认按钮弹出确认弹窗，
+   *  如果确认执行，则执行点击操作，
+   *  否则执行 取消操作
+   */
+  function batchForMoreSrcBars(modeName,ids) {
+        if(ids.length == 0)
+            ids.push(".res-row-box");
+
+    let isDownloadMode = modeName == "模拟点击" ? "false" : (modeName == "批量下载" ? "true" : "其他");
+
+    if (popupComfirm(modeName)) {
+      try {
+        // console.log(chosenIDs);
+        let startIndex = $("#head").val();
+        let endIndex = $("#tail").val();
+        for (let id of ids) {
+          // console.log(thisID);
+          try {
+            batch(isDownloadMode, id, startIndex, endIndex);
+          } catch (e) {
+            console.log(id + "该栏执行异常，跳过执行");
+            continue;
+          }
         }
-        console.log("共检索到 "+ list.length + "条； 成功执行 " + succNum + " 次！ 失败 " + failNum + " 次！ 操作范围：从第 " + actualStartIndex + " 条 至 第 " + actualEndIndex +" 条。");
+      } finally {
+        //点击完成，提示刷新页面
+        setTimeout(refreshPage, 0);
+        //置空栏号输入框
         $(".indexNum").val("");
-        /**
-         * For CRX
-         */
-        setTimeout(refreshPage,0);
-       }else{
-           alert("已取消操作！");
-       }
+
+      }
+    } else {
+      cancel();
     }
-    /**
-    *  click all resources in two ways according to 'isPositive'
-    */
-    function clickAll(isPositive){
+  }
 
-    	var isPositiveMesg = isPositive == "true" ? "正序点击" : "倒序点击";
+  /**
+   *  Click or download in bulk according to
+   *  isDownload : true -> Download Mode  ;  false -> Click Mode
+   *  thisBarID  : 此次要执行的资源栏 id
+   *  startIndex : 此次资源栏中执行的开始资源编号
+   *  endIndex   : 此次资源栏中执行的结束资源编号
+   *
+   */
+  function batch(isDownload, thisBarID, startIndex, endIndex) {
+    //let isDownloadMesg = isDownload == "false" ? "模拟点击" : "批量下载";
 
-    	var conf_str = false;
-        conf_str = confirm("小可爱，你即将执行“" + isPositiveMesg
-                           + "全部资源”操作，如果资源量较大（> 1000），耗时就会较久，打开的页面也会较多哦！不过都会自动关闭的哦！！！" + "\n\n"
-                           + "小可爱，资源较多时，还请三思啊！！！" + "\n\n" + "你是否要执行？");
-       if(conf_str){
-        var list = document.getElementsByClassName("res-row-open-enable");
-        var succNum = 0;
-        var failNum = 0;
-        var tempUrl;
-        var win;
-        if(isPositive == "true"){
-        	for (let i = 0; i < list.length; i++){
-                try{
-        		     tempUrl = list[i].getAttribute("data-href");
-                     win = window.open(tempUrl);
-                     sleep(100);//睡眠，是为了确保每个资源都被正常获取
-                     win.close();
-                     succNum++;
-                     console.log(tempUrl);
-                }catch(e){
-                     console.log(e.name + ": " + e.message );
-                     console.log("该条未成功执行 ；URL :   "+ list[i].getAttribute("data-href"));
-                     failNum++;
-                     continue;
-                }
-        	}
-        }else{
-        	for (let i = list.length - 1; i >= 0; i--){
-            	try{
-        		     tempUrl = list[i].getAttribute("data-href");
-                     win = window.open(tempUrl);
-                     sleep(100);//睡眠，是为了确保每个资源都被正常获取
-                     win.close();
-                     succNum++;
-                     console.log(tempUrl);
-                }catch(e){
-                     console.log(e.name + ": " + e.message );
-                     console.log("该条未成功执行 ；URL :   "+ list[i].getAttribute("data-href"));
-                     failNum++;
-                     continue;
-                }
-        	}
+    //  以下五个等价，实现相同功能，但写法是逐步优化
+    //  var list = document.getElementsByClassName("res-row-open-enable");
+    //  var list = $(".res-row-open-enable");
+    //  var list = $(".hide-div").children();
+    //  var list = $(".res-row-box").children(".hide-div").children();
+    let list = $(thisBarID).children(".hide-div").children();
+    let succNum = 0;
+    let failNum = 0;
+    let tempUrl;
+    let win;
+
+    let actualStartIndex = startIndex <= list.length && startIndex > 0 ? startIndex : (startIndex <= 0 ? 1 : list.length); //小于0则为 1 ； 大于 最大值 则为 最大值
+    let actualEndIndex = endIndex <= list.length && endIndex > 0 ? endIndex : (endIndex <= 0 ? 1 : list.length); //输入值超出资源总数的值，则将输入值置为总数的值
+        if (actualStartIndex > actualEndIndex){
+            console.log("here");
+            alert("小可爱😀，你的起始结束值写反了哟！");
+            return;
         }
-        console.log(isPositiveMesg + "：  共检索到 "+ list.length + "条； 成功执行 " + succNum + " 次！ 失败 " + failNum + " 次！" );
-        setTimeout(refreshPage,0);
-       }else{
-       alert("已取消操作！");
-       }
-    }
+    // console.log("actualStartIndex: " + actualStartIndex);
+    // console.log("actualEndIndex: " + actualEndIndex);
+    // list 存在并不为空
+    if (null == list || list.size() == 0) {
+      console.log(thisBarID + "对应的资源栏为空");
+    } else {
 
-    /**
-    *  open a new tab according the url and execute callback function
-    */
-    function newTabAlert(url, option, callback){
-        GM_openInTab(url, option);
-        if(typeof callback === "function"){
-              callback();
-           }
-    }
+      for (let i = actualStartIndex - 1; i < actualEndIndex; i++) {
+        // console.log(i);
+        // console.log(list);
+        // console.log(list[i]);
+        try {
 
-// css
-    const styleTag = `
+          tempUrl = list[i].getAttribute("data-href");
+          if (null == tempUrl || tempUrl == "") {
+
+            console.log("资源栏：" + thisBarId + "的第 " + (i + 1) + " 条资源未获取到URL");
+
+          } else {
+
+            win = window.open(tempUrl);
+            if (isDownload == 'false') {
+              sleep(100); //睡眠，是为了确保每个资源都被正常获取
+              win.close();
+            }
+            succNum++;
+            // console.log(tempUrl);
+
+          }
+        } catch (e) {
+          console.log(e.name + ": " + e.message);
+          console.log("资源栏：" + thisBarId + "的第 " + (i + 1) + " 条未成功执行 ；URL :   " + list[i].getAttribute("data-href"));
+          failNum++;
+          continue;
+        }
+      }
+
+    }
+    console.log("共检索到 " + list.length + "条； 成功执行 " + succNum + " 次！ 失败 " + failNum + " 次！ 操作范围：从第 " + actualStartIndex + " 条 至 第 " + actualEndIndex + " 条。");
+  }
+  /**
+   *  click all resources in two ways according to 'isPositive'
+   */
+  function clickAll(isPositive) {
+
+    let isPositiveMesg = isPositive == "true" ? "正序点击" : "倒序点击";
+
+    let conf_str = false;
+    conf_str = confirm("小可爱，你即将执行“" + isPositiveMesg +
+      "全部资源”操作，如果资源量较大（> 1000），耗时就会较久，打开的页面也会较多哦！不过都会自动关闭的哦！！！" + "\n\n" +
+      "小可爱，资源较多时，还请三思啊！！！" + "\n\n" + "你是否要执行？");
+    if (conf_str) {
+      let list = document.getElementsByClassName("res-row-open-enable");
+      let succNum = 0;
+      let failNum = 0;
+      let tempUrl;
+      let win;
+      if (isPositive == "true") {
+        for (let i = 0; i < list.length; i++) {
+          try {
+            tempUrl = list[i].getAttribute("data-href");
+            win = window.open(tempUrl);
+            sleep(100); //睡眠，是为了确保每个资源都被正常获取
+            win.close();
+            succNum++;
+            // console.log(tempUrl);
+          } catch (e) {
+            console.log(e.name + ": " + e.message);
+            console.log("该条未成功执行 ；URL :   " + list[i].getAttribute("data-href"));
+            failNum++;
+            continue;
+          }
+        }
+      } else {
+        for (let i = list.length - 1; i >= 0; i--) {
+          try {
+            tempUrl = list[i].getAttribute("data-href");
+            win = window.open(tempUrl);
+            sleep(100); //睡眠，是为了确保每个资源都被正常获取
+            win.close();
+            succNum++;
+            // console.log(tempUrl);
+          } catch (e) {
+            console.log(e.name + ": " + e.message);
+            console.log("该条未成功执行 ；URL :   " + list[i].getAttribute("data-href"));
+            failNum++;
+            continue;
+          }
+        }
+      }
+      console.log(isPositiveMesg + "：  共检索到 " + list.length + "条； 成功执行 " + succNum + " 次！ 失败 " + failNum + " 次！");
+      setTimeout(refreshPage, 0);
+    } else {
+      alert("已取消操作！");
+    }
+  }
+
+  /**
+   *  open a new tab according the url and execute callback function
+   */
+  function newTabAlert(url, option, callback) {
+    GM_openInTab(url, option);
+    if (typeof callback === "function") {
+      callback();
+    }
+  }
+
+  // css
+  const styleTag = `
 <style>
   .helper-btn{
      border:1px solid #aaa;
@@ -236,30 +345,31 @@ $(function() {
   #choose{ background:rgba(204, 0, 0,0.6);}
   //#refresh{ background:rgba(0, 151, 179,0.7);}
 </style>`;
-    $(styleTag).appendTo('head');
+  $(styleTag).appendTo('head');
 
-    //为每个资源添加下载按钮
-    $(".res-row-open-enable").each(function() {
-        if ($(this).find(".download-res-button").length > 0) return;//如果已经存在下载按钮（例如mp3），则不再添加
-        $(this).find("ul").html('<li class="download-ress download-res-button">下载</li>' + $(this).find("ul").html());
-        // $(this).find("ul").html('<li class="forward">正序点击</li>' + $(this).find("ul").html());
-        // $(this).find("ul").html('<li class="reverse">倒序点击</li>' + $(this).find("ul").html());
-    });
-    //单个资源下载
-    $(document).on('click', '.download-ress', function() {
-            var resHref = $(this).parents(".res-row-open-enable").attr('data-href');
-            window.open(resHref);
-    });
+  //为每个资源添加下载按钮
+  $(".res-row-open-enable").each(function() {
+    if ($(this).find(".download-res-button").length > 0) return; //如果已经存在下载按钮（例如mp3），则不再添加
+    $(this).find("ul").html('<li class="download-ress download-res-button">下载</li>' + $(this).find("ul").html());
+    // $(this).find("ul").html('<li class="forward">正序点击</li>' + $(this).find("ul").html());
+    // $(this).find("ul").html('<li class="reverse">倒序点击</li>' + $(this).find("ul").html());
+  });
+  //单个资源下载
+  $(document).on('click', '.download-ress', function() {
+    var resHref = $(this).parents(".res-row-open-enable").attr('data-href');
+    window.open(resHref);
+  });
 
-    // 模拟点击  part
-    $('<div id="functionAreaTitle" style="padding:0 20px">\
+  // 模拟点击  part
+  $('<div id="functionAreaTitle" style="padding:0 20px">\
            <div class="clear20"></div>\
            <HR style="FILTER: alpha(opacity=100,finishopacity=0,style=3)" width="100%" color=#0BD SIZE=4>\
            <div class="clear10"></div>\
           <div class="res-row-title">\
               <span style="color: #0BD;font-weight:600; font-size:16px"> 功能区 </span>\
               <span > Powered by </span>\
-              <span ><a href="https://greasyfork.org/zh-CN/scripts/390978-%E4%BA%91%E7%8F%AD%E8%AF%BE%E9%AB%98%E6%95%88%E5%8A%A9%E6%89%8B">云班课高效助手</a></span>\
+              <span ><a href="https://greasyfork.org/zh-CN/scripts/390978-%E4%BA%91%E7%8F%AD%E8%AF%BE%E9%AB%98%E6%95%88%E5%8A%A9%E6%89%8B">云班课高效助手  </a></span>\
+              <span style="color: red;font-weight:400; font-size:13px">  强制关闭chrome快捷键 ：Alt + F4 </span>\
               <i class="slidedown-button manual-order-hide-part icon-angle-down" data-sort="1001"></i>\
           </div>\
        </div>\
@@ -286,13 +396,14 @@ $(function() {
         <div class="res-row-title" >\
            <span class="res-group-name" >已选栏号：</span>\
            <span id="barID" style="color: #0BD;font-weight:600"> 全选 </span> |\
-           <span style="color: #0BD" >(范围：1 至 20；不在 [1,20] 该区间内 / 不填写 则视为全选)</span>\
+           <span style="color: #0BD" >(范围： 最大值为资源栏总数 / 不填写 则视为全选)</span>\
            <span style="color: red">(注意：资源栏号是从资源区里第一栏开始)</span>\
            <i class="icon-angle-down slidedown-button manual-order-hide-part" data-sort="1000"></i>\
         </div>\
         <div class="hide-div" data-status="N" data-sort="1000" style="display: none;">\
           <form class="appendTxt res-row" style="padding:20px 20px 0px 20px ; !important">\
-              <input id="bar_index" placeholder="输入要点击的栏号（从 1 开始）" style="border:1px solid #0BD; border-radius:8px;width:20%">&nbsp\
+              <input id="bar_index" placeholder="选择栏号   [  if (value < 1) --> 1 ; if (value > max) --> max  ]      选择多栏语法： 3-2-4-6  "  \
+              onkeyup="this.value=this.value.replace(/[^\\d][-]/g,\'\')" onafterpaste="this.value=this.value.replace(/[^\\d][-]/g,\'\')" style="border:1px solid #0BD; border-radius:8px;width:86%">&nbsp\
               <input id="choose" class="helper-btn helper-btn-a helper-btn-b"  type="button" value="重置">\
          </form>\
         </div>\
@@ -307,8 +418,8 @@ $(function() {
         </div>\
         <div class="hide-div" data-status="N" data-sort="998" style="display: none;">\
           <form class="appendTxt res-row" style="padding:20px 20px 0px 20px ; !important">\
-              <input id="head" class="indexNum" placeholder="起始位置(从“1”开始)" style="border:1px solid #0BD; border-radius:8px;width:20%">&nbsp\
-              <input id="tail" class="indexNum" placeholder="结束位置" style="border:1px solid #0BD; border-radius:8px;width:20%">&nbsp\
+              <input id="head" class="indexNum" placeholder="起始位置    [  if (value < 1) --> 1 ; if (value > max) --> max  ]"  style="border:1px solid #0BD; border-radius:8px;width:42%" >&nbsp\
+              <input id="tail" class="indexNum" placeholder="结束位置    [  if (value < 1) --> 1 ; if (value > max) --> max  ]" style="border:1px solid #0BD; border-radius:8px;width:42%">&nbsp\
               <input id="confirm" class="helper-btn helper-btn-a"  type="button" value="模拟点击">\
               <input id="downloadSrc" class="helper-btn helper-btn-a"  type="button" value="批量下载">\
          </form>\
@@ -344,146 +455,167 @@ $(function() {
        </div>\
     </div>\
       ').insertAfter("#res-view-way");
-    // 初始化
-    $("#module-1,#module-2").css("display","none");
-    $("#confirm, #downloadSrc, #mode-click, #mode-download").css("display","inline");
-    // change mode
-    $(document).on('click','#mode-click',function(){
-        $("#module-1, #module-2").css("display","block");
-        //         等价于
-        //         document.getElementById("module-1").style.display="block";
-        //         document.getElementById("module-2").style.display="block";
-        //         document.getElementById('confirm').style.display = document.getElementById('confirm').style.display=="inline"?"inline":"none";
-        $("#downloadSrc, #mode-download").css("display","none");
-        //         $("#mode-click").css({"background-color":"#0BD","color":"#fff"});
-        $("#modeName").text("模拟点击");
-        if(browserType() == "Chrome"){
-            newTabAlert("chrome://settings/?search=downloads", 'active',function(){
-                alert("操作提醒：\n"+"务必操作，否则请不要向下执行任何操作！！！\n" + "\n"
-                      + "（识别到您使用的是Chrome浏览器）" + "\n\n"
-                      + "   已自动为你打开浏览器【设置】页面" + "\n"
-                      + "   【提醒】：如果没有结果可在搜索框中搜索【保存位置】" +"\n"
-                      + " 【 打开 】 “下载前询问每个文件的保存位置” 右侧按钮");
-            });
-         }else{
-            alert("操作提醒：\n"+"务必操作，否则请不要向下执行任何操作！！！\n" + "\n"
-                  + "（以下只是 chrome 浏览器操作步骤）" + "\n"
-                  + "  1. 新建 Tab 页\n"+"   -->\n"
-                  +"  2. 地址栏输入： chrome://settings/?search=downloads\n" +"   -->\n"
-                  + "  3. 打开 “下载前询问每个文件的保存位置” 右侧按钮");
-        }
-    });
-    $(document).on('click','#mode-download',function(){
-        document.getElementById("module-1").style.display="block";
-        $("#module-2, #confirm, #mode-click").css("display","none");
-        //         $("#mode-download").css({"background-color":"#0BD","color":"#fff"});
-        $("#modeName").text("批量下载");
-        if(browserType() == "Chrome"){
-            newTabAlert("chrome://settings/?search=downloads", 'active',function(){
-                alert("操作提醒：\n"+"务必操作，否则请不要向下执行任何操作！！！\n" + "\n"
-                      + "（识别到您使用的是Chrome浏览器）" + "\n\n"
-                      + "   已自动为你打开浏览器【设置】页面" + "\n"
-                      + "   【提醒】：如果没有结果可在搜索框中搜索【保存位置】" +"\n"
-                      + " 【 关闭 】 “下载前询问每个文件的保存位置” 右侧按钮")
-            });
-        }else{
-            alert("操作提醒：\n"+"务必操作，否则请不要向下执行任何操作！！！\n" + "\n"
-                  + "（以下只是 chrome 浏览器操作步骤）" + "\n"
-                  + "  1. 新建 Tab 页\n"+"   -->\n"
-                  +"  2. 地址栏输入：chrome://settings/?search=downloads\n" +"   -->\n"
-                  + "  3. 关闭 “下载前询问每个文件的保存位置” 右侧按钮");
-        }
-    });
-    $(document).on('click','#reset',function(){
-        $("#module-1,#module-2").css("display","none");
-        $("#confirm, #downloadSrc, #mode-click, #mode-download").css("display","inline");
-        //         $("#mode-download, #mode-click").css({"background-color":"#fff","color":"#000"});
-        $("#modeName").text("未选择");
+  // 初始化
+  $("#module-1,#module-2").css("display", "none");
+  $("#confirm, #downloadSrc, #mode-click, #mode-download").css("display", "inline");
+  // change mode
+  $(document).on('click', '#mode-click', function() {
+    $("#module-1, #module-2").css("display", "block");
+    //         等价于
+    //         document.getElementById("module-1").style.display="block";
+    //         document.getElementById("module-2").style.display="block";
+    //         document.getElementById('confirm').style.display = document.getElementById('confirm').style.display=="inline"?"inline":"none";
+    $("#downloadSrc, #mode-download").css("display", "none");
+    //         $("#mode-click").css({"background-color":"#0BD","color":"#fff"});
+    $("#modeName").text("模拟点击");
+    if (browserType() == "Chrome") {
+      newTabAlert("chrome://settings/downloads", 'active', function() {
+        alert("操作提醒：\n" + "务必操作，否则请不要向下执行任何操作！！！\n" + "\n" +
+          "（识别到您使用的是Chrome浏览器）" + "\n\n" +
+          "   已自动为你打开浏览器【设置】页面" + "\n" +
+          "   【提醒】：如果没有结果可在搜索框中搜索【保存位置】" + "\n" +
+          " 【 打开 】 “下载前询问每个文件的保存位置” 右侧按钮");
+      });
+    } else {
+      alert("操作提醒：\n" + "务必操作，否则请不要向下执行任何操作！！！\n" + "\n" +
+        "（以下只是 chrome 浏览器操作步骤）" + "\n" +
+        "  1. 新建 Tab 页\n" + "   -->\n" +
+        "  2. 地址栏输入： chrome://settings/?search=downloads\n" + "   -->\n" +
+        "  3. 打开 “下载前询问每个文件的保存位置” 右侧按钮");
+    }
+  });
+  $(document).on('click', '#mode-download', function() {
+    document.getElementById("module-1").style.display = "block";
+    $("#module-2, #confirm, #mode-click").css("display", "none");
+    //         $("#mode-download").css({"background-color":"#0BD","color":"#fff"});
+    $("#modeName").text("批量下载");
+    if (browserType() == "Chrome") {
+      newTabAlert("chrome://settings/downloads", 'active', function() {
+        alert("操作提醒：\n" + "务必操作，否则请不要向下执行任何操作！！！\n" + "\n" +
+          "（识别到您使用的是Chrome浏览器）" + "\n\n" +
+          "   已自动为你打开浏览器【设置】页面" + "\n" +
+          "   【提醒】：如果没有结果可在搜索框中搜索【保存位置】" + "\n" +
+          " 【 关闭 】 “下载前询问每个文件的保存位置” 右侧按钮")
+      });
+    } else {
+      alert("操作提醒：\n" + "务必操作，否则请不要向下执行任何操作！！！\n" + "\n" +
+        "（以下只是 chrome 浏览器操作步骤）" + "\n" +
+        "  1. 新建 Tab 页\n" + "   -->\n" +
+        "  2. 地址栏输入：chrome://settings/?search=downloads\n" + "   -->\n" +
+        "  3. 关闭 “下载前询问每个文件的保存位置” 右侧按钮");
+    }
+  });
+  $(document).on('click', '#reset', function() {
+    $("#module-1,#module-2").css("display", "none");
+    $("#confirm, #downloadSrc, #mode-click, #mode-download").css("display", "inline");
+    //         $("#mode-download, #mode-click").css({"background-color":"#fff","color":"#000"});
+    $("#modeName").text("未选择");
 
-    });
-    // 刷新
-    $(document).on('click','#refresh',function(){location.reload()})
-    //   给分栏添加 id 易于按栏操作
-    $(".res-row-box").each(function(i,e){$(this).attr('id','id_' + i)});
-    // 选择id 后，改变页面显示数据，以及改变按钮的状态
-    var chosenID = ".res-row-box";
-    $(document).on('click','#choose',function(){
-      var val = $("#choose").val();
-      if(val == "确认选择"){
-        switch($("#bar_index").val()){
-            case "1":chosenID = "#id_0";break;
-            case "2":chosenID = "#id_1";break;
-            case "3":chosenID = "#id_2";break;
-            case "4":chosenID = "#id_3";break;
-            case "5":chosenID = "#id_4";break;
-            case "6":chosenID = "#id_5";break;
-            case "7":chosenID = "#id_6";break;
-            case "8":chosenID = "#id_7";break;
-            case "9":chosenID = "#id_8";break;
-            case "10":chosenID = "#id_9";break;
-            case "11":chosenID = "#id_10";break;
-            case "12":chosenID = "#id_11";break;
-            case "13":chosenID = "#id_12";break;
-            case "14":chosenID = "#id_13";break;
-            case "15":chosenID = "#id_14";break;
-            case "16":chosenID = "#id_15";break;
-            case "17":chosenID = "#id_16";break;
-            case "18":chosenID = "#id_17";break;
-            case "19":chosenID = "#id_18";break;
-            case "20":chosenID = "#id_19";break;
-            default:chosenID = ".res-row-box";
-        }
-        var barID = $("#bar_index").val();
-        var barID_str =  (barID > 0 && barID < 21) ? barID : "全选";
-        alert("小可爱，你已将要操作的资源栏修改为： "+ barID_str);
-        $("#barID").text(barID_str);
-        $("#choose").val("重置");
-          $("#choose").css('background-color','rgba(204, 0, 0,0.6)');
-        console.log(chosenID  + "映射值 <-- 输入值" + $("#bar_index").val());
+  });
+  // 刷新
+  $(document).on('click', '#refresh', function() {
+    location.reload()
+  })
+  //资源栏总数
+  var srcBarSum = 0;
+  //   给分栏添加 id 易于按栏操作
+  $(".res-row-box").each(function(i, e) {
+    $(this).attr('id', 'id_' + i);
+    srcBarSum = i + 1;
+  });
+  //存储所有被选择的资源栏 id
+  var chosenIDs = [];
+  $(document).on('click', '#choose', function() {
+    //获取点击时按钮值
+    var val = $("#choose").val();
+    //接受用户输入的id 字符串
+    let inputString = $("#bar_index").val().trim();
+    //inputString经过清洗后得到的有效资源栏编号
+    let idsArr = cleanData(inputString);
 
-      }else{
-        $("#bar_index").val("");
-        $("#choose").val("确认选择");
-        $("#choose").click();
+    if (val == "确认选择") {
+      /**
+       * 用户修改要选择的资源栏点击确认后
+       * 根据有效资源栏编号生成对应资源栏id存入数组备用
+       * 并显示被选择的所有有效资源栏
+       */
+
+      //无输入内容,选择全部栏
+      if (idsArr.length == 0) {
+        chosenIDs.push(".res-row-box");
+      } else {
+        //有输入内容，转化成对应的id,放入数组备用
+        for (let id of idsArr) {
+          chosenIDs.push("#id_" + (id - 1));
+        }
       }
+      //test
+      // console.log(idsArr);
+      //var barID = $("#bar_index").val();
+      let barID_str = idsArr.length == 0 ? "全选" : idsArr;
+      //var barID_str =  (barID > 0 && barID < 21) ? barID : "全选";
+      alert("小可爱，你已将要操作的资源栏修改为： " + barID_str);
+      $("#barID").text(barID_str);
+      $("#choose").val("重置");
+      $("#choose").css('background-color', 'rgba(204, 0, 0,0.6)');
 
-    });
-    // reset  bar_index
-    $('#bar_index').bind("input propertychange",function(event){
-        $("#choose").val("确认选择");
-        $("#choose").css('background-color','rgba(0, 151, 179,0.7)');
-    });
+    } else {
+      /**
+       * 用户重置资源栏输入框
+       * 置空输入框 和 存储的所有资源栏id
+       * 被选择的资源栏设为全选
+       */
+      $("#bar_index").val("");
+      chosenIDs = [];
+      $("#choose").val("确认选择");
+      $("#choose").click();
+
+    }
+
+  });
+
+  // reset  bar_index
+  $('#bar_index').bind("input propertychange", function(event) {
+    $("#choose").val("确认选择");
+    $("#choose").css('background-color', 'rgba(0, 151, 179,0.7)');
+  });
 
 
-/**
- * Main body
- *
- */
+  /**
+   * Main body
+   *
+   */
 
-/**
- * 指定下标区间，进行模拟点击（用于资源量较大,有漏掉的情况）
- *
- */
-    $(document).on('click', '#confirm', function() { batch("false") });
+  /**
+   * 根据指定的所有资源栏id，进行模拟点击
+   */
+  $(document).on('click', '#confirm', function() {
+    batchForMoreSrcBars("模拟点击", chosenIDs)
+  });
 
-/**
- * 指定下标区间，进行批量下载
- *
- */
-    $(document).on('click', '#downloadSrc', function() { batch("true") });
+  /**
+   * 根据指定的所有资源栏id，进行批量下载
+   *
+   */
+  $(document).on('click', '#downloadSrc', function() {
+    batchForMoreSrcBars("批量下载", chosenIDs)
+  });
 
- /**
- * 模拟正序点击全部资源
- *
- */
-    $(document).on('click', '.forward', function(){ clickAll("true") });
+  /**
+   * 模拟正序点击全部资源
+   *
+   */
+  $(document).on('click', '.forward', function() {
+    clickAll("true")
+  });
 
-/**
- * 模拟倒序点击全部资源
- *
- */
-    $(document).on('click', '.reverse', function(){ clickAll("false") });
-
+  /**
+   * 模拟倒序点击全部资源
+   *
+   */
+  $(document).on('click', '.reverse', function() {
+    clickAll("false")
+  });
 
 
 
