@@ -2,8 +2,8 @@
 // @name         云班课高效助手
 // @author       bellamy.n.h
 // @namespace    http://tampermonkey.net/
-// @version      1.60
-// @description  【🎇视频相关功能来啦😊  新增 “视频连播” 、 “立即看完” 】  添加下载按钮，可批量下载资源，可按资源栏缩小范围进行批量处理资源，高效使用云班课。\n【***请勿滥用***】\n【注意：执行完毕后需刷新页面】\n【自用脚本，根据个人需求开发，只做了chrome适配，其他浏览器可用，但具体操作会有点不同】\n【如果好用就留着用吧😀，不好用给点建议也好🙇‍】
+// @version      1.65
+// @description  【🎇视频相关功能来啦😊  新增 “视频连播” 、 “立即看完” 】  \\n  添加下载按钮，可批量下载资源，可按资源栏缩小范围进行批量处理资源，高效使用云班课。
 // @match        https://www.mosoteach.cn/web/index.pjhp*
 // @include      *://www.mosoteach.cn/web/index.php*
 // @note         Version 1.65    偷偷改了些小Bug 🤭，使连播更顺畅。下个版本上16倍速连播喽😊
