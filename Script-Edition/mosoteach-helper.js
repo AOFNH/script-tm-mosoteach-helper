@@ -3,7 +3,7 @@
 // @author       bellamy.n.h
 // @namespace    http://tampermonkey.net/
 // @version      1.65
-// @description  【🎇视频相关功能来啦😊  新增 “视频连播” 、 “立即看完” 】  \\n  添加下载按钮，可批量下载资源，可按资源栏缩小范围进行批量处理资源，高效使用云班课。
+// @description  【🎇视频相关功能来啦😊  新增 “视频连播” 、 “即刻看完” 】  单个下载资源，批量下载资源，选择多栏资源进行批量处理，助你高效使用云班课。
 // @match        https://www.mosoteach.cn/web/index.pjhp*
 // @include      *://www.mosoteach.cn/web/index.php*
 // @note         Version 1.65    偷偷改了些小Bug 🤭，使连播更顺畅。下个版本上16倍速连播喽😊
@@ -29,7 +29,7 @@ $(function() {
     var getVal = GM_getValue;// GM_getValue(name, defaultValue)
     var notification = GM_notification;// GM_notification(text, title, image, onclick)
     var delVal = GM_deleteValue;// GM_deleteValue(name)
-    var listVals = GM_listValues// GM_listValues()
+    var listVals = GM_listValues;// GM_listValues()
 
     var config = {
         notificationTitle : "云班课高效助手",
