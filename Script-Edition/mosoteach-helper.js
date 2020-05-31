@@ -2,10 +2,11 @@
 // @name         云班课高效助手
 // @author       bellamy.n.h
 // @namespace    http://tampermonkey.net/
-// @version      1.65
-// @description  【🎇视频相关功能来啦😊  新增 “视频连播” 、 “即刻看完” 】  单个下载资源，批量下载资源，选择多栏资源进行批量处理，助你高效使用云班课。
+// @version      1.70
+// @description  【🎇 “视频16倍速连播” 、 “视频即刻看完”  ||  ⚠关闭win10专注助手食用最佳 】  单个下载资源，批量下载资源，选择多栏资源进行批量处理，助你高效使用云班课😎。
 // @match        https://www.mosoteach.cn/web/index.pjhp*
 // @include      *://www.mosoteach.cn/web/index.php*
+// @note         Version 1.70    视频最高16倍速连播；调用系统通知，反馈更佳；
 // @note         Version 1.65    偷偷改了些小Bug 🤭，使连播更顺畅。下个版本上16倍速连播喽😊
 // @note         Version 1.60    新增测试功能，支持 连续播放所有视频、 立即看完当前视频（测试阶段，还请反馈）
 // @note         Version 1.50    加强对输入值约束； 支持多栏处理； chrome浏览器自动打开 设置页面地址更改； 其他Bug修复。
@@ -25,23 +26,126 @@
 $(function() {
     'use strict';
 
-    var setVal = GM_setValue;// GM_setValue(name, value)
-    var getVal = GM_getValue;// GM_getValue(name, defaultValue)
-    var notification = GM_notification;// GM_notification(text, title, image, onclick)
-    var delVal = GM_deleteValue;// GM_deleteValue(name)
-    var listVals = GM_listValues;// GM_listValues()
-
     var config = {
-        notificationTitle : "云班课高效助手",
+        isCRX: false,
+        notificationTitle: "云班课高效助手",
         icon128: "https://s1.ax1x.com/2020/05/18/Yf6pp4.png",
         icon48: "https://s1.ax1x.com/2020/05/18/Yf6Kcd.png",
         icon32: "https://s1.ax1x.com/2020/05/18/Yf6BBq.png",
         icon16: 'https://s1.ax1x.com/2020/05/18/Yfg71e.png',
     };
 
+    var openInTab;
+    var setVal;
+    var getVal;
+    var notification;
+    var delVal;
+    var listVals;
+
+    if (config.isCRX) {
+        console.log("in CRX");
+        /**
+         * ***********
+         * For CRX  Begin
+         * ***********
+         *
+         * ***********
+         * Override the following apis provided by TamperMonkey
+         * these apis can only work well in TamperMonkey Script
+         * but they can not work in CRX
+         */
+
+        /**
+         * [GM_openInTab : send message to bg.js to create New Tab according to these following parameters]
+         * @param {[String]} forWhat [onDownload  or  offDownload]
+         * @param {[String]} _url    [new tab]
+         * @param {[Boolean]} _option [is or not active]
+         */
+        function GM_openInTab(_url, _option, forWhat) {
+
+            chrome.runtime.sendMessage({
+                createTab: forWhat,
+                url: _url,
+                option: "active" === _option,
+            });
+
+        }
+
+        function GM_setValue(name, value) {
+
+        }
+
+        function GM_getValue(name, defaultValue) {
+
+        }
+
+        function GM_notification(text, title, image, onclick) {
+
+        }
+
+        function GM_deleteValue(name) {
+
+        }
+
+        function GM_listValues() {
+
+        }
+
+        /**
+         * ***********
+         * For CRX End
+         * ***********
+         */
+        openInTab = GM_openInTab; //GM_openInTab(url, option);
+        setVal = GM_setValue; // GM_setValue(name, value)
+        getVal = GM_getValue; // GM_getValue(name, defaultValue)
+        notification = GM_notification; // GM_notification(text, title, image, onclick)
+        delVal = GM_deleteValue; // GM_deleteValue(name)
+        listVals = GM_listValues // GM_listValues()
+
+    } else {
+
+        openInTab = GM_openInTab; //GM_openInTab(url, option);
+        setVal = GM_setValue; // GM_setValue(name, value)
+        getVal = GM_getValue; // GM_getValue(name, defaultValue)
+        notification = GM_notification; // GM_notification(text, title, image, onclick)
+        delVal = GM_deleteValue; // GM_deleteValue(name)
+        listVals = GM_listValues; // GM_listValues()
+
+    }
+
     /**
-	 *  Determine the browser type
-	 */
+     * For  notification  function
+     *
+     * text - the text of the notification (required unless highlight is set)
+     * title - the notificaton title
+     * image - the image
+     * highlight - a boolean flag whether to highlight the tab that sends the notfication (required unless text is set)
+     * silent - a boolean flag whether to not play a sound
+     * timeout - the time after that the notification will be hidden (0 = disabled)
+     * ondone - called when the notification is closed (no matter if this was triggered by a timeout or a click) or the tab was highlighted
+     * onclick - called in case the user clicks the notification
+     */
+    function getNotificationDetails(_text, _timeout, _title, _image, _highlight, _silent,  _ondone, _onclick) {
+
+        let details = {
+            text: _text === undefined ? '' : _text,
+            title: _title === undefined || _title === null ? config.notificationTitle : _title,
+            image: _image === undefined || _image === null ? config.icon48 : _image,
+            highlight: _highlight === undefined || _highlight === null ? true : _highlight,
+            silent: _silent === undefined || _silent === null ? false : _silent,
+            timeout: _timeout === undefined || _timeout === null ? 6000 : _timeout,
+            ondone: _ondone === undefined || _ondone === null ? null : _ondone,
+            onclick: _onclick === undefined || _onclick === null ? null : _onclick
+        };
+        return details;
+
+    };
+
+
+    /**
+     *  Determine the browser type
+     */
     function browserType() {
         var userAgent = navigator.userAgent; //get browser userAgent string
         var isOpera = userAgent.indexOf("Opera") > -1;
@@ -62,9 +166,9 @@ $(function() {
         }; //is IE or not
     }
     /**
-	 *  sleep function
-	 *  @param numberMillis -- 要睡眠的毫秒数
-	 */
+     *  sleep function
+     *  @param numberMillis -- 要睡眠的毫秒数
+     */
     function sleep(numberMillis) {
         var now = new Date();
         var exitTime = now.getTime() + numberMillis;
@@ -76,15 +180,15 @@ $(function() {
     }
 
     /**
-	 * Remove duplicate value
-	 */
+     * Remove duplicate value in array
+     */
     function removeDuplicate(arr) {
         let x = new Set(arr);
         return [...x];
     }
     /**
-	 *   download resources function
-	 */
+     *   download resources function
+     */
     function download(name, href) {
         var a = document.createElement("a"), //创建a标签
             e = document.createEvent("MouseEvents"); //创建鼠标事件对象
@@ -94,31 +198,35 @@ $(function() {
         a.dispatchEvent(e); //给指定的元素，执行事件click事件
     }
 
-    // Refresh page tips
+    /**
+     * Refresh page tips
+     */
     function refreshPage() {
         alert("操作完成，请小可爱刷新页面查看结果！！！");
     }
-    //取消操作
+
+    /**
+     * cancel action
+     */
     function cancel() {
         alert("已取消操作！");
     }
     /**
-	 *  点击和下载前以弹窗二次确认
-	 *  modeName
-	 *  return boolean
-	 **/
+     *  点击和下载前以弹窗二次确认
+     *  modeName
+     *  return boolean
+     **/
     function popupComfirm(modeName) {
         let conf_str = false;
         conf_str = confirm("小可爱，你即将执行“" + modeName + "”操作！！！" + "\n\n" +
-                           "根据选择资源数量的不同，会打开相应数量的页面，如果数量较多，请不要惊慌，因为这些页面会自动关闭的哦！！！" + "\n\n" +
-                           "你是否按照上一个提示，进行了相应的操作？" + "\n\n" + "如果是，你是否要开始执行本次操作？");
+            "根据选择资源数量的不同，会打开相应数量的页面，如果数量较多，请不要惊慌，因为这些页面会自动关闭的哦！！！" + "\n\n" +
+            "你是否按照上一个提示，进行了相应的操作？" + "\n\n" + "如果是，你是否要开始执行本次操作？");
         return conf_str;
     }
 
     /**
-	 * 数据清洗    inputString -> idsArr
-	 */
-
+     * cleaning data  数据清洗 inputString -> idsArr
+     */
     function cleanData(inputString) {
         //去除字符串中的所有空格
         inputString.replace(/\s*/g, "");
@@ -151,12 +259,12 @@ $(function() {
     }
 
     /**
-	 *  根据模式名执行对应的批量处理操作
-	 *
-	 *  点击确认按钮弹出确认弹窗，
-	 *  如果确认执行，则执行点击操作，
-	 *  否则执行 取消操作
-	 */
+     *  根据模式名执行对应的批量处理操作
+     *
+     *  点击确认按钮弹出确认弹窗，
+     *  如果确认执行，则执行点击操作，
+     *  否则执行 取消操作
+     */
     function batchForMoreSrcBars(modeName, ids) {
         if (ids.length == 0)
             ids.push(".res-row-box");
@@ -190,21 +298,14 @@ $(function() {
     }
 
     /**
-	 *  Click or download in bulk according to
-	 *  isDownload : true -> Download Mode  ;  false -> Click Mode
-	 *  thisBarID  : 此次要执行的资源栏 id
-	 *  startIndex : 此次资源栏中执行的开始资源编号
-	 *  endIndex   : 此次资源栏中执行的结束资源编号
-	 *
-	 */
+     *  Click or download in bulk according to
+     *  isDownload : true -> Download Mode  ;  false -> Click Mode
+     *  thisBarID  : 此次要执行的资源栏 id
+     *  startIndex : 此次资源栏中执行的开始资源编号
+     *  endIndex   : 此次资源栏中执行的结束资源编号
+     *
+     */
     function batch(isDownload, thisBarID, startIndex, endIndex) {
-        //let isDownloadMesg = isDownload == "false" ? "模拟点击" : "批量下载";
-
-        //  以下五个等价，实现相同功能，但写法是逐步优化
-        //  var list = document.getElementsByClassName("res-row-open-enable");
-        //  var list = $(".res-row-open-enable");
-        //  var list = $(".hide-div").children();
-        //  var list = $(".res-row-box").children(".hide-div").children();
         let list = $(thisBarID).children(".hide-div").children();
         let succNum = 0;
         let failNum = 0;
@@ -218,17 +319,11 @@ $(function() {
             alert("小可爱😀，你的起始结束值写反了哟！");
             return;
         }
-        // console.log("actualStartIndex: " + actualStartIndex);
-        // console.log("actualEndIndex: " + actualEndIndex);
-        // list 存在并不为空
         if (null == list || list.size() == 0) {
             console.log(thisBarID + "对应的资源栏为空");
         } else {
 
             for (let i = actualStartIndex - 1; i < actualEndIndex; i++) {
-                // console.log(i);
-                // console.log(list);
-                // console.log(list[i]);
                 try {
 
                     tempUrl = list[i].getAttribute("data-href");
@@ -258,17 +353,18 @@ $(function() {
         }
         console.log("共检索到 " + list.length + "条； 成功执行 " + succNum + " 次！ 失败 " + failNum + " 次！ 操作范围：从第 " + actualStartIndex + " 条 至 第 " + actualEndIndex + " 条。");
     }
+
     /**
-	 *  click all resources in two ways according to 'isPositive'
-	 */
+     *  click all resources in two ways according to 'isPositive'
+     */
     function clickAll(isPositive) {
 
         let isPositiveMesg = isPositive == "true" ? "正序点击" : "倒序点击";
 
         let conf_str = false;
         conf_str = confirm("小可爱，你即将执行“" + isPositiveMesg +
-                           "全部资源”操作，如果资源量较大（> 1000），耗时就会较久，打开的页面也会较多哦！不过都会自动关闭的哦！！！" + "\n\n" +
-                           "小可爱，资源较多时，还请三思啊！！！" + "\n\n" + "你是否要执行？");
+            "全部资源”操作，如果资源量较大（> 1000），耗时就会较久，打开的页面也会较多哦！不过都会自动关闭的哦！！！" + "\n\n" +
+            "小可爱，资源较多时，还请三思啊！！！" + "\n\n" + "你是否要执行？");
         if (conf_str) {
             let list = document.getElementsByClassName("res-row-open-enable");
             let succNum = 0;
@@ -315,143 +411,187 @@ $(function() {
         }
     }
 
-    /**
-	 *  Play  all videos continuously
-	 */
+var LvtbFH1 = [];
+var ADMdUY2 = 0;
+var v3;
+var iXMuYPum4;
+var drrZZ5 = 4000;
+var HdffZy6 = false;
+var ZprJze_nB7 = 1;
+var ZMUm8 = 1000 / ZprJze_nB7;
+var fGtZM9 = 0;
+var AIzTA10 = 0;
+var D11 = 10000;
+var SeYrTPjis12 = 16;
+var lUTRsbHku13 = '';
 
-    var rt1 = [];
-    var S2 = 0;
-    var nOvm3;
-    var JwbFu4;
-    var nBRTbru5 = 3000;
-    var hqvH6 = false;
-    var VfJKMDBo7 = 1;
-    var YQsMGhZ8 = 1000 / VfJKMDBo7;
-    var lV$fAhb9 = 0;
-    var deT$F10 = 1;
-    var GOrpb11 = '';
-
-    function continuousPlay() {
-        hqvH6 = true;
-        if (typeof($("\x23\x63\x6f\x6e\x74\x69\x6e\x75\x6f\x75\x73\x50\x6c\x61\x79")["\x61\x74\x74\x72"]("\x63\x6c\x61\x73\x73")) != "\x75\x6e\x64\x65\x66\x69\x6e\x65\x64") {
-            let text = "\u8fde\u7eed\u64ad\u653e\u5df2\u5f00\u542f\x2c\u65e0\u9700\u91cd\u590d\u5f00\u542f";
-            window["\x61\x6c\x65\x72\x74"](text);
-            return;
-        }
+function continuousPlay() {
+    HdffZy6 = true;
+    if (typeof($("\x23\x63\x6f\x6e\x74\x69\x6e\x75\x6f\x75\x73\x50\x6c\x61\x79")["\x61\x74\x74\x72"]("\x63\x6c\x61\x73\x73")) != "\x75\x6e\x64\x65\x66\x69\x6e\x65\x64") {
+        let text = "\u8fde\u7eed\u64ad\u653e\u5df2\u5f00\u542f\x2c\u65e0\u9700\u91cd\u590d\u5f00\u542f";
+        notification(getNotificationDetails(text), null);
+        return;
+    }
+    window["\x61\x6c\x65\x72\x74"]("\u8bf7\u5148\u5173\u95ed \u3010 \x57\x69\x6e\x31\x30 \u4e13\u6ce8\u52a9\u624b \u3011 \u518d\u4f7f\u7528\uff0c\u5426\u5219\u65e0\u6cd5\u6b63\u5e38\u63d0\u793a\u4fe1\u606f \n\n \u63d0\u793a\uff1a\u5728\u901a\u77e5\u6258\u76d8\u4e2d\u5173\u95ed");
         $('<div id = "continuousPlay" class="mejs__button">\
 <button type="button" aria-controls="mep_0" title="开始连续播放" aria-label="Play" tabindex="0"></button>\
 </div>\
 <div id = "stopContinuousPlay" class="mejs__button mejs__playpause-button mejs__pause">\
 <button type="button" aria-controls="mep_0" title="暂停连续播放" aria-label="Pause" tabindex="0"></button>\
 </div>').insertAfter(".mejs__fullscreen-button");
-        $("\x23\x63\x6f\x6e\x74\x69\x6e\x75\x6f\x75\x73\x50\x6c\x61\x79")["\x63\x6c\x69\x63\x6b"](() => {
-            hqvH6 = true;
+    $("\x23\x63\x6f\x6e\x74\x69\x6e\x75\x6f\x75\x73\x50\x6c\x61\x79")["\x63\x6c\x69\x63\x6b"](() => {
+        HdffZy6 = true;
+        if (playBySpecifiedRateAndNotify()) {
             clickDiv();
-        });
-        $("\x23\x73\x74\x6f\x70\x43\x6f\x6e\x74\x69\x6e\x75\x6f\x75\x73\x50\x6c\x61\x79")["\x63\x6c\x69\x63\x6b"](() => {
-            hqvH6 = false;
-            clearInterval(nOvm3);
-            clearTimeout(JwbFu4);
-            let stopContinusPlayText = "\u5df2\u9000\u51fa\u8fde\u7eed\u64ad\u653e\u6a21\u5f0f\uff0c\u4f46\u4fdd\u7559\u4e86\u5173\u95ed\u89c6\u9891\u5373\u53ef\u770b\u5b8c\u529f\u80fd\x3b\n\u4e0b\u4e00\u6b21\u8fde\u7eed\u64ad\u653e\u4ece\u7b2c " + (deT$F10 + 1) + " \u4e2a\u89c6\u9891\u5f00\u59cb\u3002";
-            window["\x61\x6c\x65\x72\x74"](stopContinusPlayText);
-        });
-        window["\x61\x6c\x65\x72\x74"]("\u8fde\u7eed\u64ad\u653e\u5df2\u5f00\u542f\uff0c\u8bf7\u5230\u89c6\u9891\u9875\u9762\u4f7f\u7528");
-    }
-    let a = $("\x64\x69\x76\x5b\x64\x61\x74\x61\x2d\x6d\x69\x6d\x65\x3d\x27\x76\x69\x64\x65\x6f\x27\x5d");
-    window["\x4f\x62\x6a\x65\x63\x74"]["\x6b\x65\x79\x73"](a)["\x66\x6f\x72\x45\x61\x63\x68"]((key) => {
-        rt1["\x70\x75\x73\x68"](a[key]);
-    });
-    console["\x6c\x6f\x67"](rt1["\x6c\x65\x6e\x67\x74\x68"]);
-    for (let a in rt1) {
-        console["\x6c\x6f\x67"](a);
-    }
-
-    function send() {
-        console["\x6c\x6f\x67"]("\x73\x65\x6e\x64 \x73\x74\x61\x72\x74");
-        console["\x6c\x6f\x67"]("\u5173\u95ed\u5373\u770b\u5b8c");
-        $["\x61\x6a\x61\x78\x53\x65\x74\x75\x70"]({
-            beforeSend: function() {
-                let argsData = arguments[1]["\x64\x61\x74\x61"]
-                let falseArgsData = "";
-                let falseVal;
-                for (let k in argsData) {
-                    if (k["\x69\x6e\x63\x6c\x75\x64\x65\x73"]("\x77\x61\x74\x63\x68\x5f\x74\x6f")) {
-                        console["\x6c\x6f\x67"]("\x62\x65\x66\x6f\x72\x65\x3a " + k + " \x3a " + argsData[k]);
-                        falseVal = argsData["\x64\x75\x72\x61\x74\x69\x6f\x6e"];
-                        console["\x6c\x6f\x67"]("\x61\x66\x74\x65\x72\x3a " + k + " \x3a " + falseVal);
-                    } else {
-                        falseVal = argsData[k];
-                    }
-                    falseArgsData = falseArgsData + "\x26" + k + "\x3d" + falseVal;
-                }
-                arguments[1]["\x64\x61\x74\x61"] = falseArgsData["\x73\x75\x62\x73\x74\x72\x69\x6e\x67"](1, falseArgsData["\x6c\x65\x6e\x67\x74\x68"]);
-            },
-            processData: false,
-            complete: function() {
-                console["\x6c\x6f\x67"]("\x73\x65\x6e\x64 \x63\x6f\x6d\x70\x6c\x65\x74\x65\x64");
-            }
-        });
-    }
-
-    function clickDiv() {
-        lV$fAhb9 = S2++;
-        deT$F10 = lV$fAhb9 + 1;
-        if (hqvH6 == false) {
-            console["\x6c\x6f\x67"]("\u5728\u64ad\u653e\u7b2c " + (deT$F10) + " \u4e2a\u89c6\u9891\u65f6\u9000\u51fa\u4e86\u8fde\u7eed\u64ad\u653e");
-            return;
-        }
-        if (lV$fAhb9 == 0) {
-            send();
-            let text = "\u8fde\u7eed\u64ad\u653e\u5df2\u5f00\u59cb\uff01\n\u5171\u8981\u64ad\u653e " + rt1["\x6c\x65\x6e\x67\x74\x68"] + " \u4e2a\u89c6\u9891\n\u672a\u81ea\u52a8\u64ad\u653e\u7684\u89c6\u9891\u9700\u8981\u624b\u52a8\u70b9\u51fb\u64ad\u653e\n\u4e0b\u4e2a\u7248\u672c\u589e\u52a0\u81ea\u52a8\u64ad\u653e";
-            window["\x61\x6c\x65\x72\x74"](text);
-        }
-        if (lV$fAhb9 < rt1["\x6c\x65\x6e\x67\x74\x68"]) {
-            $(rt1[lV$fAhb9])["\x74\x72\x69\x67\x67\x65\x72"]("\x63\x6c\x69\x63\x6b");
-            playThisVideo();
         } else {
-            setTimeout(() => {
-                clearInterval(nOvm3);
-            }, 0);
-            console["\x6c\x6f\x67"]("\u7ed3\u675f");
-            $("\x2e\x63\x6c\x6f\x73\x65\x2d\x77\x69\x6e\x64\x6f\x77")["\x74\x72\x69\x67\x67\x65\x72"]("\x63\x6c\x69\x63\x6b");
-            window["\x61\x6c\x65\x72\x74"]("\u8fde\u7eed\u64ad\u653e\u7ed3\u675f\uff0c \u5171\u8fde\u7eed\u64ad\u653e\u4e86 " + rt1["\x6c\x65\x6e\x67\x74\x68"] + " \u4e2a\u89c6\u9891\uff0c\u5373\u5c06\u5237\u65b0\u9875\u9762");
-            location["\x72\x65\x6c\x6f\x61\x64"]();
+            notification(getNotificationDetails("\u5df2\u53d6\u6d88\u672c\u6b21\u64cd\u4f5c\uff01"), null);
         }
-    }
+    });
+    $("\x23\x73\x74\x6f\x70\x43\x6f\x6e\x74\x69\x6e\x75\x6f\x75\x73\x50\x6c\x61\x79")["\x63\x6c\x69\x63\x6b"](() => {
+        stopContinuousPlay();
+        let stopContinusPlayText = "\u5df2\u9000\u51fa\u8fde\u7eed\u64ad\u653e\u6a21\u5f0f\uff0c\u4f46\u4fdd\u7559\u4e86\u5173\u95ed\u89c6\u9891\u5373\u53ef\u770b\u5b8c\u529f\u80fd\x3b\n\u4e0b\u4e00\u6b21\u8fde\u7eed\u64ad\u653e\u4ece\u7b2c " + (AIzTA10 + 1) + " \u4e2a\u89c6\u9891\u5f00\u59cb\u3002";
+        notification(getNotificationDetails(stopContinusPlayText), null);
+    });
+    let txt = "\u8fde\u7eed\u64ad\u653e\u5df2\u5f00\u542f\uff0c\u8bf7\u5230\u89c6\u9891\u64ad\u653e\u9875\u9762\u4f7f\u7528";
+    notification(getNotificationDetails(txt), null);
+}
 
-    function playThisVideo() {
-        if (lV$fAhb9 >= rt1["\x6c\x65\x6e\x67\x74\x68"]) {
-            return;
+function stopContinuousPlay() {
+    HdffZy6 = false;
+    clearInterval(v3);
+    clearTimeout(iXMuYPum4);
+}
+let a = $("\x64\x69\x76\x5b\x64\x61\x74\x61\x2d\x6d\x69\x6d\x65\x3d\x27\x76\x69\x64\x65\x6f\x27\x5d");
+window["\x4f\x62\x6a\x65\x63\x74"]["\x6b\x65\x79\x73"](a)["\x66\x6f\x72\x45\x61\x63\x68"]((key) => {
+    LvtbFH1["\x70\x75\x73\x68"](a[key]);
+});
+
+function isNumber(MLBqXLRl14) {
+    var _ZViEq15 = /^\d+(\.\d+)?$/;
+    var YdXXD16 = /^(-(([0-9]+\.[0-9]*[1-9][0-9]*)|([0-9]*[1-9][0-9]*\.[0-9]+)|([0-9]*[1-9][0-9]*)))$/;
+    if (_ZViEq15["\x74\x65\x73\x74"](MLBqXLRl14) || YdXXD16["\x74\x65\x73\x74"](MLBqXLRl14)) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+function playBySpecifiedRateAndNotify() {
+    let inputRate = prompt("\u4ee5\u51e0\u500d\u901f\u5ea6\u8fdb\u884c\u8fde\u7eed\u64ad\u653e\u5440\ud83e\uddd0\uff08\u6700\u9ad8" + SeYrTPjis12 + "\u500d\u54e6\uff01\uff09\u5efa\u8bae\x31\x2e\x38\u500d\u6700\u4f73\ud83e\udd2d");
+    if (inputRate == null) {
+        return false;
+    }
+    if (!isNumber(inputRate)) {
+        let text = "\u5565\u2753 \u4f60\u8f93\u5165\u4e86\u5565\uff0c\u90a3\u662f\u6570\u5b57\u5417\uff1f\n \u518d\u8f93\u4e00\u6b21\u5427\uff0c\u522b\u8f93\u51fa\u54af\uff01\ud83d\ude00";
+        notification(getNotificationDetails(text), null);
+        return false;
+    }
+    ZprJze_nB7 = inputRate <= 0 ? 1 : (inputRate > SeYrTPjis12 ? SeYrTPjis12 : inputRate);
+    ZMUm8 = 1000 / ZprJze_nB7;
+    let text = "\u8fde\u7eed\u64ad\u653e\u5df2\u5f00\u59cb\uff01\n\u5c06\u4ee5 " + ZprJze_nB7 + " \u500d\u901f \u64ad\u653e " + (LvtbFH1["\x6c\x65\x6e\x67\x74\x68"] - AIzTA10) + " \u4e2a\u89c6\u9891\u3002";
+    notification(getNotificationDetails(text), null);
+    return true;
+}
+
+function send() {
+    $["\x61\x6a\x61\x78\x53\x65\x74\x75\x70"]({
+        beforeSend: function() {
+            let argsData = arguments[1]["\x64\x61\x74\x61"]
+            let falseArgsData = "";
+            let falseVal;
+            for (let k in argsData) {
+                if (k["\x69\x6e\x63\x6c\x75\x64\x65\x73"]("\x77\x61\x74\x63\x68\x5f\x74\x6f")) {
+                    falseVal = argsData["\x64\x75\x72\x61\x74\x69\x6f\x6e"];
+                } else {
+                    falseVal = argsData[k];
+                }
+                falseArgsData = falseArgsData + "\x26" + k + "\x3d" + falseVal;
+            }
+            arguments[1]["\x64\x61\x74\x61"] = falseArgsData["\x73\x75\x62\x73\x74\x72\x69\x6e\x67"](1, falseArgsData["\x6c\x65\x6e\x67\x74\x68"]);
+        },
+        processData: false,
+        complete: function() {
+            console["\x6c\x6f\x67"]("\x73\x65\x6e\x64 \x63\x6f\x6d\x70\x6c\x65\x74\x65\x64");
+        }
+    });
+}
+
+function clickDiv() {
+    fGtZM9 = ADMdUY2++;
+    AIzTA10 = fGtZM9 + 1;
+    if (HdffZy6 == false) {
+        return;
+    }
+    if (fGtZM9 == 0) {
+        send();
+    }
+    if (fGtZM9 < LvtbFH1["\x6c\x65\x6e\x67\x74\x68"]) {
+        $(LvtbFH1[fGtZM9])["\x74\x72\x69\x67\x67\x65\x72"]("\x63\x6c\x69\x63\x6b");
+        playThisVideo();
+    } else {
+        setTimeout(() => {
+            clearInterval(v3);
+        }, 0);
+        console["\x6c\x6f\x67"]("\x63\x75\x72\x72\x65\x6e\x74\x56\x69\x64\x65\x6f\x49\x6e\x64\x65\x78\x3a " + fGtZM9);
+        $("\x2e\x63\x6c\x6f\x73\x65\x2d\x77\x69\x6e\x64\x6f\x77")["\x74\x72\x69\x67\x67\x65\x72"]("\x63\x6c\x69\x63\x6b");
+        window["\x61\x6c\x65\x72\x74"]("\u8fde\u7eed\u64ad\u653e\u7ed3\u675f\uff0c \u5171\u8fde\u7eed\u64ad\u653e\u4e86 " + LvtbFH1["\x6c\x65\x6e\x67\x74\x68"] + " \u4e2a\u89c6\u9891\uff0c\u5373\u5c06\u5237\u65b0\u9875\u9762");
+        location["\x72\x65\x6c\x6f\x61\x64"]();
+    }
+}
+
+function playThisVideo() {
+    if (fGtZM9 >= LvtbFH1["\x6c\x65\x6e\x67\x74\x68"]) {
+        return;
+    }
+    let duration;
+    let currentTime;
+    setTimeout(() => {
+        let video = window["\x64\x6f\x63\x75\x6d\x65\x6e\x74"]["\x71\x75\x65\x72\x79\x53\x65\x6c\x65\x63\x74\x6f\x72"]('\x76\x69\x64\x65\x6f');
+        let duration = video["\x64\x75\x72\x61\x74\x69\x6f\x6e"];
+        let currentTime = video["\x63\x75\x72\x72\x65\x6e\x74\x54\x69\x6d\x65"];
+        let isPaused = video["\x70\x61\x75\x73\x65\x64"];
+        if (isPaused) {
+            $("\x2e\x6d\x65\x6a\x73\x5f\x5f\x72\x65\x70\x6c\x61\x79")["\x74\x72\x69\x67\x67\x65\x72"]("\x63\x6c\x69\x63\x6b");;
+            console["\x6c\x6f\x67"]("\u5f00\u59cb\u64ad\u653e");
         }
         setTimeout(() => {
-            let video = window["\x64\x6f\x63\x75\x6d\x65\x6e\x74"]["\x71\x75\x65\x72\x79\x53\x65\x6c\x65\x63\x74\x6f\x72"]('\x76\x69\x64\x65\x6f');
-            let duration = video["\x64\x75\x72\x61\x74\x69\x6f\x6e"];
-            let currentTime = video["\x63\x75\x72\x72\x65\x6e\x74\x54\x69\x6d\x65"];
-            let remain = (duration - currentTime) * YQsMGhZ8;
-            console["\x6c\x6f\x67"]("\u8be5\u89c6\u9891\u5269\u4f59\u64ad\u653e\u65f6\u957f \uff1a" + remain + " \u6beb\u79d2");
-            clearInterval(nOvm3);
-            clearTimeout(JwbFu4);
-            nOvm3 = setInterval(clickDiv, remain + nBRTbru5);
-            JwbFu4 = setTimeout(() => {
-                console["\x6c\x6f\x67"]("\u5f53\u524d\u89c6\u9891\u64ad\u653e\u5230\uff1a" + window["\x64\x6f\x63\x75\x6d\x65\x6e\x74"]["\x71\x75\x65\x72\x79\x53\x65\x6c\x65\x63\x74\x6f\x72"]('\x76\x69\x64\x65\x6f')["\x63\x75\x72\x72\x65\x6e\x74\x54\x69\x6d\x65"]);
-                $("\x2e\x63\x6c\x6f\x73\x65\x2d\x77\x69\x6e\x64\x6f\x77")["\x74\x72\x69\x67\x67\x65\x72"]("\x63\x6c\x69\x63\x6b");
-                console["\x6c\x6f\x67"]("\u5173\u95ed\u7b2c" + deT$F10 + "\u4e2a\u89c6\u9891");
-                console["\x6c\x6f\x67"](nBRTbru5 + " \u6beb\u79d2\u540e\u64ad\u653e\u4e0b\u4e00\u4e2a\u89c6\u9891");
-            }, remain);
-        }, 10000);
-    }
+            console["\x6c\x6f\x67"](window["\x64\x6f\x63\x75\x6d\x65\x6e\x74"]["\x71\x75\x65\x72\x79\x53\x65\x6c\x65\x63\x74\x6f\x72"]('\x76\x69\x64\x65\x6f')["\x70\x61\x75\x73\x65\x64"] ? "\u6682\u505c" : "\u672a\u505c");
+        }, 500);
+        video["\x70\x6c\x61\x79\x62\x61\x63\x6b\x52\x61\x74\x65"] = ZprJze_nB7;
+        let remain = (duration - currentTime) * ZMUm8;
+        console["\x6c\x6f\x67"]("\u8be5\u89c6\u9891\u5269\u4f59\u64ad\u653e\u65f6\u957f \uff1a" + remain + " \u6beb\u79d2");
+        clearInterval(v3);
+        clearTimeout(iXMuYPum4);
+        if (duration != duration || currentTime != currentTime || remain != remain) {
+            stopContinuousPlay();
+            notification(getNotificationDetails("\u6267\u884c\u5f02\u5e38\uff0c\u5df2\u505c\u6b62\u672c\u6b21\u8fde\u64ad\uff0c\u8bf7\u91cd\u5f00\u59cb\u89c6\u9891\u8fde\u64ad\u3002" + "\n\u4e0b\u4e00\u6b21\u8fde\u7eed\u64ad\u653e\u4ece\u7b2c " + (AIzTA10 + 1) + " \u4e2a\u89c6\u9891\u5f00\u59cb\u3002", 10000, ), null);
+            return;
+        }
+        
+        v3 = setInterval(clickDiv, remain + drrZZ5);
+        iXMuYPum4 = setTimeout(() => {
+            $("\x2e\x63\x6c\x6f\x73\x65\x2d\x77\x69\x6e\x64\x6f\x77")["\x74\x72\x69\x67\x67\x65\x72"]("\x63\x6c\x69\x63\x6b");
+        }, remain);
+    }, D11);
+}
+
 
     /**
-	 *  open a new tab according the url and execute callback function
-	 */
-    function newTabAlert(url, option, callback) {
-        GM_openInTab(url, option);
+     *  open a new tab according the url and execute callback function
+     */
+    function newTabAlert(forWhat, url, option, callback) {
+        if (config.isCRX)
+            openInTab(url, option, forWhat);
+        else
+            openInTab(url, option);
         if (typeof callback === "function") {
             callback();
         }
     }
 
-    // css
+    /**
+     * MosoteachHelper CSS
+     */
     const styleTag = `
 <style>
 .helper-btn{
@@ -508,7 +648,6 @@ background-color:rgba(204, 0, 0,0.6);
         window.open(resHref);
     });
 
-    // 模拟点击  part
     $('<div id="functionAreaTitle" style="padding:0 20px">\
 <div class="clear20"></div>\
 <HR style="FILTER: alpha(opacity=100,finishopacity=0,style=3)" width="100%" color=#0BD SIZE=4>\
@@ -527,8 +666,8 @@ background-color:rgba(204, 0, 0,0.6);
 <div id="helper" style="padding:0 40px;">\
 <div class="res-row-title" >\
 <span class="res-group-name">当前模式： </span>\
-<span id="modeName" style="color: #0BD;font-weight:600">未选择 </span> |\
-<span style="color: red"> ( 选择模式后，请按照提示操作，否则会出错；“模拟点击/下载”执行完毕后需刷新页面,数据才会更新。）</span>\
+<span id="modeName" style="color: #0BD;font-weight:600">未选择 </span>\
+<span class="span-display" style="color: red"> | ( 选择模式后，请按照提示操作，否则会出错；“模拟点击/下载”执行完毕后需刷新页面,数据才会更新。）</span>\
 <i class="icon-angle-down slidedown-button manual-order-hide-part" data-sort="997"></i>\
 </div>\
 <div class="hide-div" data-status="N" data-sort="997" style="display: none;">\
@@ -543,9 +682,9 @@ background-color:rgba(204, 0, 0,0.6);
 <div class="clear30"></div>\
 <div class="res-row-title" >\
 <span class="res-group-name" >已选栏号：</span>\
-<span id="barID" style="color: #0BD;font-weight:600"> 全选 </span> |\
-<span style="color: #0BD" >(范围： 最大值为资源栏总数 / 不填写 则视为全选)</span>\
-<span style="color: red">(注意：资源栏号是从资源区里第一栏开始)</span>\
+<span id="barID" style="color: #0BD;font-weight:600"> 全选 </span>\
+<span class="span-display" style="color: #0BD" > | (范围： 最大值为资源栏总数 / 不填写 则视为全选)</span>\
+<span class="span-display" style="color: red">(注意：资源栏号是从资源区里第一栏开始)</span>\
 <i class="icon-angle-down slidedown-button manual-order-hide-part" data-sort="1000"></i>\
 </div>\
 <div class="hide-div" data-status="N" data-sort="1000" style="display: none;">\
@@ -560,8 +699,8 @@ onkeyup="this.value=this.value.replace(/[^\\d][-]/g,\'\')" onafterpaste="this.va
 <div class="clear30"></div>\
 <div class="res-row-title" >\
 <span class="res-group-name" >模拟批量点击/下载</span>\
-<span style="color: #0BD" >(范围：以资源总数值作为范围最大值)</span>\
-<span style="color: red">( 点击对应按钮，将打开较多页面，请耐心等待其自动关闭。可在“控制台”里查看运行日志)</span>\
+<span class="span-display" style="color: #0BD" >(范围：以资源总数值作为范围最大值)</span>\
+<span class="span-display" style="color: red">( 点击对应按钮，将打开较多页面，请耐心等待其自动关闭。可在“控制台”里查看运行日志)</span>\
 <i class="icon-angle-down slidedown-button manual-order-hide-part" data-sort="998"></i>\
 </div>\
 <div class="hide-div" data-status="N" data-sort="998" style="display: none;">\
@@ -577,8 +716,8 @@ onkeyup="this.value=this.value.replace(/[^\\d][-]/g,\'\')" onafterpaste="this.va
 <div class="clear30"></div>\
 <div class="res-row-title" >\
 <span class="res-group-name" >模拟全部点击（耗时较长）</span>\
-<span style="color: #0BD" >(范围：所有资源)</span>\
-<span style="color: red">( 点击后，将会自动打开较多页面，请耐心等待其自动关闭。可在“控制台(F12 -> console)”里查看运行日志)</span>\
+<span class="span-display" style="color: #0BD" >(范围：所有资源)</span>\
+<span class="span-display" style="color: red">( 点击后，将会自动打开较多页面，请耐心等待其自动关闭。可在“控制台(F12 -> console)”里查看运行日志)</span>\
 <i class="icon-angle-down slidedown-button manual-order-hide-part" data-sort="999"></i>\
 </div>\
 <div class="hide-div" data-status="N" data-sort="999" style="display: none;">\
@@ -636,19 +775,19 @@ onkeyup="this.value=this.value.replace(/[^\\d][-]/g,\'\')" onafterpaste="this.va
         //         $("#mode-click").css({"background-color":"#0BD","color":"#fff"});
         $("#modeName").text("模拟点击");
         if (browserType() == "Chrome") {
-            newTabAlert("chrome://settings/downloads", 'active', function() {
+            newTabAlert("onDownload", "chrome://settings/downloads", 'active', function() {
                 alert("操作提醒：\n" + "务必操作，否则请不要向下执行任何操作！！！\n" + "\n" +
-                      "（识别到您使用的是Chrome浏览器）" + "\n\n" +
-                      "   已自动为你打开浏览器【设置】页面" + "\n" +
-                      "   【提醒】：如果没有结果可在搜索框中搜索【保存位置】" + "\n" +
-                      " 【 打开 】 “下载前询问每个文件的保存位置” 右侧按钮");
+                    "（识别到您使用的是Chrome浏览器）" + "\n\n" +
+                    "   已自动为你打开浏览器【设置】页面" + "\n" +
+                    "   【提醒】：如果没有结果可在搜索框中搜索【保存位置】" + "\n" +
+                    " 【 打开 】 “下载前询问每个文件的保存位置” 右侧按钮");
             });
         } else {
             alert("操作提醒：\n" + "务必操作，否则请不要向下执行任何操作！！！\n" + "\n" +
-                  "（以下只是 chrome 浏览器操作步骤）" + "\n" +
-                  "  1. 新建 Tab 页\n" + "   -->\n" +
-                  "  2. 地址栏输入： chrome://settings/?search=downloads\n" + "   -->\n" +
-                  "  3. 打开 “下载前询问每个文件的保存位置” 右侧按钮");
+                "（以下只是 chrome 浏览器操作步骤）" + "\n" +
+                "  1. 新建 Tab 页\n" + "   -->\n" +
+                "  2. 地址栏输入： chrome://settings/?search=downloads\n" + "   -->\n" +
+                "  3. 打开 “下载前询问每个文件的保存位置” 右侧按钮");
         }
     });
     $(document).on('click', '#mode-download', function() {
@@ -657,19 +796,19 @@ onkeyup="this.value=this.value.replace(/[^\\d][-]/g,\'\')" onafterpaste="this.va
         //         $("#mode-download").css({"background-color":"#0BD","color":"#fff"});
         $("#modeName").text("批量下载");
         if (browserType() == "Chrome") {
-            newTabAlert("chrome://settings/downloads", 'active', function() {
+            newTabAlert("offDownload", "chrome://settings/downloads", 'active', function() {
                 alert("操作提醒：\n" + "务必操作，否则请不要向下执行任何操作！！！\n" + "\n" +
-                      "（识别到您使用的是Chrome浏览器）" + "\n\n" +
-                      "   已自动为你打开浏览器【设置】页面" + "\n" +
-                      "   【提醒】：如果没有结果可在搜索框中搜索【保存位置】" + "\n" +
-                      " 【 关闭 】 “下载前询问每个文件的保存位置” 右侧按钮")
+                    "（识别到您使用的是Chrome浏览器）" + "\n\n" +
+                    "   已自动为你打开浏览器【设置】页面" + "\n" +
+                    "   【提醒】：如果没有结果可在搜索框中搜索【保存位置】" + "\n" +
+                    " 【 关闭 】 “下载前询问每个文件的保存位置” 右侧按钮")
             });
         } else {
             alert("操作提醒：\n" + "务必操作，否则请不要向下执行任何操作！！！\n" + "\n" +
-                  "（以下只是 chrome 浏览器操作步骤）" + "\n" +
-                  "  1. 新建 Tab 页\n" + "   -->\n" +
-                  "  2. 地址栏输入：chrome://settings/?search=downloads\n" + "   -->\n" +
-                  "  3. 关闭 “下载前询问每个文件的保存位置” 右侧按钮");
+                "（以下只是 chrome 浏览器操作步骤）" + "\n" +
+                "  1. 新建 Tab 页\n" + "   -->\n" +
+                "  2. 地址栏输入：chrome://settings/?search=downloads\n" + "   -->\n" +
+                "  3. 关闭 “下载前询问每个文件的保存位置” 右侧按钮");
         }
     });
     $(document).on('click', '#reset', function() {
@@ -702,10 +841,10 @@ onkeyup="this.value=this.value.replace(/[^\\d][-]/g,\'\')" onafterpaste="this.va
 
         if (val == "确认选择") {
             /**
-			 * 用户修改要选择的资源栏点击确认后
-			 * 根据有效资源栏编号生成对应资源栏id存入数组备用
-			 * 并显示被选择的所有有效资源栏
-			 */
+             * 用户修改要选择的资源栏点击确认后
+             * 根据有效资源栏编号生成对应资源栏id存入数组备用
+             * 并显示被选择的所有有效资源栏
+             */
 
             //无输入内容,选择全部栏
             if (idsArr.length == 0) {
@@ -728,10 +867,10 @@ onkeyup="this.value=this.value.replace(/[^\\d][-]/g,\'\')" onafterpaste="this.va
 
         } else {
             /**
-			 * 用户重置资源栏输入框
-			 * 置空输入框 和 存储的所有资源栏id
-			 * 被选择的资源栏设为全选
-			 */
+             * 用户重置资源栏输入框
+             * 置空输入框 和 存储的所有资源栏id
+             * 被选择的资源栏设为全选
+             */
             $("#bar_index").val("");
             chosenIDs = [];
             $("#choose").val("确认选择");
@@ -749,43 +888,47 @@ onkeyup="this.value=this.value.replace(/[^\\d][-]/g,\'\')" onafterpaste="this.va
 
 
     /**
-	 * Main body
-	 *
-	 */
+     * Main body
+     *
+     */
 
     /**
-	 * 根据指定的所有资源栏id，进行模拟点击
-	 */
+     * 根据指定的所有资源栏id，进行模拟点击
+     */
     $(document).on('click', '#confirm', function() {
         batchForMoreSrcBars("模拟点击", chosenIDs)
     });
 
     /**
-	 * 根据指定的所有资源栏id，进行批量下载
-	 *
-	 */
+     * 根据指定的所有资源栏id，进行批量下载
+     *
+     */
     $(document).on('click', '#downloadSrc', function() {
         batchForMoreSrcBars("批量下载", chosenIDs)
     });
 
     /**
-	 * 模拟正序点击全部资源
-	 *
-	 */
+     * 模拟正序点击全部资源
+     *
+     */
     $(document).on('click', '.forward', function() {
         clickAll("true")
     });
 
     /**
-	 * 模拟倒序点击全部资源
-	 *
-	 */
+     * 模拟倒序点击全部资源
+     *
+     */
     $(document).on('click', '.reverse', function() {
         clickAll("false")
     });
 
-
-    $(document).on('click' , '#continuousPlayMode', ()=>{continuousPlay()} )
+    /**
+     * Play video continuously
+     */
+    $(document).on('click', '#continuousPlayMode', () => {
+        continuousPlay()
+    })
 
 
 });
