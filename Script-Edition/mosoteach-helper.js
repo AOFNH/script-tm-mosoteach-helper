@@ -2,10 +2,11 @@
 // @name         云班课高效助手
 // @author       bellamy.n.h
 // @namespace    http://tampermonkey.net/
-// @version      1.70
-// @description  【🎇 “视频16倍速连播” 、 “视频即刻看完”  ||  ⚠关闭win10专注助手食用最佳 】  单个下载资源，批量下载资源，选择多栏资源进行批量处理，助你高效使用云班课😎。
-// @match        https://www.mosoteach.cn/web/index.pjhp*
+// @version      1.80
+// @description  【高效再度升级啦😃！高效使用云班课，装这一个脚本就够了！😎】 【🧡视频倍速：新增视频倍速控件(支持 倍速递加、递减；倍速重置；一键最佳倍速；视频快进、快退)】、【💛视频连播：新版视频连播功能，支持从当前视频开始连播（配合视频控件，可达到极度自由）】、【💙快捷键：新增快捷键系统,常用功能已都加入，高效更进一步】、【💚资源处理：批量点击、下载、批处理】 
+// @match        https://www.mosoteach.cn/web/index.php*
 // @include      *://www.mosoteach.cn/web/index.php*
+// @note         Version 1.80    😁【新增视频倍速控件(支持 倍速递加、递减；倍速重置；一键最佳倍速；视频快进、快退)】、【新版视频连播功能，支持从当前视频开始连播（配合视频控件，可达到极度自由）】、【新增快捷键系统,常用功能已都加入，高效更进一步】、【修复模拟点击/下载失效Bug】、【限制全部连播最大速度为8倍】
 // @note         Version 1.70    视频最高16倍速连播；调用系统通知，反馈更佳；
 // @note         Version 1.65    偷偷改了些小Bug 🤭，使连播更顺畅。下个版本上16倍速连播喽😊
 // @note         Version 1.60    新增测试功能，支持 连续播放所有视频、 立即看完当前视频（测试阶段，还请反馈）
@@ -14,6 +15,8 @@
 // @note         Version 1.32    优化操作反馈 （可以重置已选择的资源栏数）
 // @note         Version 1.31    修复可能存在的Bug (页面无法自动关闭)
 // @icon         https://s1.ax1x.com/2020/05/18/Yf6Kcd.png
+// @require      https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/layer/2.3/layer.js
 // @grant        GM_openInTab
 // @grant        GM_notification
 // @grant        GM_getValue
@@ -33,6 +36,11 @@ $(function() {
         icon48: "https://s1.ax1x.com/2020/05/18/Yf6Kcd.png",
         icon32: "https://s1.ax1x.com/2020/05/18/Yf6BBq.png",
         icon16: 'https://s1.ax1x.com/2020/05/18/Yfg71e.png',
+        layer_css: "https://cdn.jsdelivr.net/npm/layui-layer@1.0.9/layer.min.css",
+        layer_js: "https://cdnjs.cloudflare.com/ajax/libs/layer/2.3/layer.js",
+        jquery_js: "https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js",
+        layui_js: "https://cdn.jsdelivr.net/npm/layui-src@2.5.5/dist/layui.min.js",
+        fontawesome_css: "https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.13.0/css/all.min.css"
     };
 
     var openInTab;
@@ -78,9 +86,19 @@ $(function() {
         function GM_getValue(name, defaultValue) {
 
         }
-
-        function GM_notification(text, title, image, onclick) {
-
+        /**
+         * send message to chrome API
+         *      chrome.notifications.create(string notificationId, NotificationOptions options, function callback)
+         * @param {[type]}   notificationDetails [description]
+         * @param {Function} callback            [description]
+         */
+        function GM_notification(notificationDetails, callback) {
+            chrome.runtime.sendMessage({
+                notifDetails: {
+                    details: notificationDetails,
+                    callbackFunc: callback
+                }
+            });
         }
 
         function GM_deleteValue(name) {
@@ -101,9 +119,21 @@ $(function() {
         getVal = GM_getValue; // GM_getValue(name, defaultValue)
         notification = GM_notification; // GM_notification(text, title, image, onclick)
         delVal = GM_deleteValue; // GM_deleteValue(name)
-        listVals = GM_listValues // GM_listValues()
+        listVals = GM_listValues; // GM_listValues()
+
+
+        // inject layer.css
+        $("<link>")
+            .attr({
+                rel: "stylesheet",
+                type: "text/css",
+                href: config.fontawesome_css
+            })
+            .appendTo("head");
+
 
     } else {
+        console.log("in Script ");
 
         openInTab = GM_openInTab; //GM_openInTab(url, option);
         setVal = GM_setValue; // GM_setValue(name, value)
@@ -112,11 +142,32 @@ $(function() {
         delVal = GM_deleteValue; // GM_deleteValue(name)
         listVals = GM_listValues; // GM_listValues()
 
+
+
+        // inject layer.css
+        $("<link>")
+            .attr({
+                rel: "stylesheet",
+                type: "text/css",
+                href: config.layer_css
+            })
+            .appendTo("head");
+
+
+        // inject layer.css
+        $("<link>")
+            .attr({
+                rel: "stylesheet",
+                type: "text/css",
+                href: config.fontawesome_css
+            })
+            .appendTo("head");
+
     }
 
     /**
      * For  notification  function
-     *
+     * 
      * text - the text of the notification (required unless highlight is set)
      * title - the notificaton title
      * image - the image
@@ -126,7 +177,7 @@ $(function() {
      * ondone - called when the notification is closed (no matter if this was triggered by a timeout or a click) or the tab was highlighted
      * onclick - called in case the user clicks the notification
      */
-    function getNotificationDetails(_text, _timeout, _title, _image, _highlight, _silent,  _ondone, _onclick) {
+    function getNotificationDetails(_text, _timeout, _title, _image, _highlight, _silent, _ondone, _onclick) {
 
         let details = {
             text: _text === undefined ? '' : _text,
@@ -306,6 +357,13 @@ $(function() {
      *
      */
     function batch(isDownload, thisBarID, startIndex, endIndex) {
+        //let isDownloadMesg = isDownload == "false" ? "模拟点击" : "批量下载";
+
+        //  以下五个等价，实现相同功能，但写法是逐步优化
+        //  var list = document.getElementsByClassName("res-row-open-enable");
+        //  var list = $(".res-row-open-enable");
+        //  var list = $(".hide-div").children();
+        //  var list = $(".res-row-box").children(".hide-div").children();
         let list = $(thisBarID).children(".hide-div").children();
         let succNum = 0;
         let failNum = 0;
@@ -315,15 +373,21 @@ $(function() {
         let actualStartIndex = startIndex <= list.length && startIndex > 0 ? startIndex : (startIndex <= 0 ? 1 : list.length); //小于0则为 1 ； 大于 最大值 则为 最大值
         let actualEndIndex = endIndex <= list.length && endIndex > 0 ? endIndex : (endIndex <= 0 ? 1 : list.length); //输入值超出资源总数的值，则将输入值置为总数的值
         if (actualStartIndex > actualEndIndex) {
-            console.log("here");
+            //console.log("here");
             alert("小可爱😀，你的起始结束值写反了哟！");
             return;
         }
-        if (null == list || list.size() == 0) {
+        // console.log("actualStartIndex: " + actualStartIndex);
+        // console.log("actualEndIndex: " + actualEndIndex);
+        // list 存在并不为空
+        if (null == list || list.length == 0) {
             console.log(thisBarID + "对应的资源栏为空");
         } else {
 
             for (let i = actualStartIndex - 1; i < actualEndIndex; i++) {
+                // console.log(i);
+                // console.log(list);
+                // console.log(list[i]);
                 try {
 
                     tempUrl = list[i].getAttribute("data-href");
@@ -411,171 +475,6 @@ $(function() {
         }
     }
 
-var LvtbFH1 = [];
-var ADMdUY2 = 0;
-var v3;
-var iXMuYPum4;
-var drrZZ5 = 4000;
-var HdffZy6 = false;
-var ZprJze_nB7 = 1;
-var ZMUm8 = 1000 / ZprJze_nB7;
-var fGtZM9 = 0;
-var AIzTA10 = 0;
-var D11 = 10000;
-var SeYrTPjis12 = 16;
-var lUTRsbHku13 = '';
-
-function continuousPlay() {
-    HdffZy6 = true;
-    if (typeof($("\x23\x63\x6f\x6e\x74\x69\x6e\x75\x6f\x75\x73\x50\x6c\x61\x79")["\x61\x74\x74\x72"]("\x63\x6c\x61\x73\x73")) != "\x75\x6e\x64\x65\x66\x69\x6e\x65\x64") {
-        let text = "\u8fde\u7eed\u64ad\u653e\u5df2\u5f00\u542f\x2c\u65e0\u9700\u91cd\u590d\u5f00\u542f";
-        notification(getNotificationDetails(text), null);
-        return;
-    }
-    window["\x61\x6c\x65\x72\x74"]("\u8bf7\u5148\u5173\u95ed \u3010 \x57\x69\x6e\x31\x30 \u4e13\u6ce8\u52a9\u624b \u3011 \u518d\u4f7f\u7528\uff0c\u5426\u5219\u65e0\u6cd5\u6b63\u5e38\u63d0\u793a\u4fe1\u606f \n\n \u63d0\u793a\uff1a\u5728\u901a\u77e5\u6258\u76d8\u4e2d\u5173\u95ed");
-        $('<div id = "continuousPlay" class="mejs__button">\
-<button type="button" aria-controls="mep_0" title="开始连续播放" aria-label="Play" tabindex="0"></button>\
-</div>\
-<div id = "stopContinuousPlay" class="mejs__button mejs__playpause-button mejs__pause">\
-<button type="button" aria-controls="mep_0" title="暂停连续播放" aria-label="Pause" tabindex="0"></button>\
-</div>').insertAfter(".mejs__fullscreen-button");
-    $("\x23\x63\x6f\x6e\x74\x69\x6e\x75\x6f\x75\x73\x50\x6c\x61\x79")["\x63\x6c\x69\x63\x6b"](() => {
-        HdffZy6 = true;
-        if (playBySpecifiedRateAndNotify()) {
-            clickDiv();
-        } else {
-            notification(getNotificationDetails("\u5df2\u53d6\u6d88\u672c\u6b21\u64cd\u4f5c\uff01"), null);
-        }
-    });
-    $("\x23\x73\x74\x6f\x70\x43\x6f\x6e\x74\x69\x6e\x75\x6f\x75\x73\x50\x6c\x61\x79")["\x63\x6c\x69\x63\x6b"](() => {
-        stopContinuousPlay();
-        let stopContinusPlayText = "\u5df2\u9000\u51fa\u8fde\u7eed\u64ad\u653e\u6a21\u5f0f\uff0c\u4f46\u4fdd\u7559\u4e86\u5173\u95ed\u89c6\u9891\u5373\u53ef\u770b\u5b8c\u529f\u80fd\x3b\n\u4e0b\u4e00\u6b21\u8fde\u7eed\u64ad\u653e\u4ece\u7b2c " + (AIzTA10 + 1) + " \u4e2a\u89c6\u9891\u5f00\u59cb\u3002";
-        notification(getNotificationDetails(stopContinusPlayText), null);
-    });
-    let txt = "\u8fde\u7eed\u64ad\u653e\u5df2\u5f00\u542f\uff0c\u8bf7\u5230\u89c6\u9891\u64ad\u653e\u9875\u9762\u4f7f\u7528";
-    notification(getNotificationDetails(txt), null);
-}
-
-function stopContinuousPlay() {
-    HdffZy6 = false;
-    clearInterval(v3);
-    clearTimeout(iXMuYPum4);
-}
-let a = $("\x64\x69\x76\x5b\x64\x61\x74\x61\x2d\x6d\x69\x6d\x65\x3d\x27\x76\x69\x64\x65\x6f\x27\x5d");
-window["\x4f\x62\x6a\x65\x63\x74"]["\x6b\x65\x79\x73"](a)["\x66\x6f\x72\x45\x61\x63\x68"]((key) => {
-    LvtbFH1["\x70\x75\x73\x68"](a[key]);
-});
-
-function isNumber(MLBqXLRl14) {
-    var _ZViEq15 = /^\d+(\.\d+)?$/;
-    var YdXXD16 = /^(-(([0-9]+\.[0-9]*[1-9][0-9]*)|([0-9]*[1-9][0-9]*\.[0-9]+)|([0-9]*[1-9][0-9]*)))$/;
-    if (_ZViEq15["\x74\x65\x73\x74"](MLBqXLRl14) || YdXXD16["\x74\x65\x73\x74"](MLBqXLRl14)) {
-        return true;
-    } else {
-        return false;
-    }
-}
-
-function playBySpecifiedRateAndNotify() {
-    let inputRate = prompt("\u4ee5\u51e0\u500d\u901f\u5ea6\u8fdb\u884c\u8fde\u7eed\u64ad\u653e\u5440\ud83e\uddd0\uff08\u6700\u9ad8" + SeYrTPjis12 + "\u500d\u54e6\uff01\uff09\u5efa\u8bae\x31\x2e\x38\u500d\u6700\u4f73\ud83e\udd2d");
-    if (inputRate == null) {
-        return false;
-    }
-    if (!isNumber(inputRate)) {
-        let text = "\u5565\u2753 \u4f60\u8f93\u5165\u4e86\u5565\uff0c\u90a3\u662f\u6570\u5b57\u5417\uff1f\n \u518d\u8f93\u4e00\u6b21\u5427\uff0c\u522b\u8f93\u51fa\u54af\uff01\ud83d\ude00";
-        notification(getNotificationDetails(text), null);
-        return false;
-    }
-    ZprJze_nB7 = inputRate <= 0 ? 1 : (inputRate > SeYrTPjis12 ? SeYrTPjis12 : inputRate);
-    ZMUm8 = 1000 / ZprJze_nB7;
-    let text = "\u8fde\u7eed\u64ad\u653e\u5df2\u5f00\u59cb\uff01\n\u5c06\u4ee5 " + ZprJze_nB7 + " \u500d\u901f \u64ad\u653e " + (LvtbFH1["\x6c\x65\x6e\x67\x74\x68"] - AIzTA10) + " \u4e2a\u89c6\u9891\u3002";
-    notification(getNotificationDetails(text), null);
-    return true;
-}
-
-function send() {
-    $["\x61\x6a\x61\x78\x53\x65\x74\x75\x70"]({
-        beforeSend: function() {
-            let argsData = arguments[1]["\x64\x61\x74\x61"]
-            let falseArgsData = "";
-            let falseVal;
-            for (let k in argsData) {
-                if (k["\x69\x6e\x63\x6c\x75\x64\x65\x73"]("\x77\x61\x74\x63\x68\x5f\x74\x6f")) {
-                    falseVal = argsData["\x64\x75\x72\x61\x74\x69\x6f\x6e"];
-                } else {
-                    falseVal = argsData[k];
-                }
-                falseArgsData = falseArgsData + "\x26" + k + "\x3d" + falseVal;
-            }
-            arguments[1]["\x64\x61\x74\x61"] = falseArgsData["\x73\x75\x62\x73\x74\x72\x69\x6e\x67"](1, falseArgsData["\x6c\x65\x6e\x67\x74\x68"]);
-        },
-        processData: false,
-        complete: function() {
-            console["\x6c\x6f\x67"]("\x73\x65\x6e\x64 \x63\x6f\x6d\x70\x6c\x65\x74\x65\x64");
-        }
-    });
-}
-
-function clickDiv() {
-    fGtZM9 = ADMdUY2++;
-    AIzTA10 = fGtZM9 + 1;
-    if (HdffZy6 == false) {
-        return;
-    }
-    if (fGtZM9 == 0) {
-        send();
-    }
-    if (fGtZM9 < LvtbFH1["\x6c\x65\x6e\x67\x74\x68"]) {
-        $(LvtbFH1[fGtZM9])["\x74\x72\x69\x67\x67\x65\x72"]("\x63\x6c\x69\x63\x6b");
-        playThisVideo();
-    } else {
-        setTimeout(() => {
-            clearInterval(v3);
-        }, 0);
-        console["\x6c\x6f\x67"]("\x63\x75\x72\x72\x65\x6e\x74\x56\x69\x64\x65\x6f\x49\x6e\x64\x65\x78\x3a " + fGtZM9);
-        $("\x2e\x63\x6c\x6f\x73\x65\x2d\x77\x69\x6e\x64\x6f\x77")["\x74\x72\x69\x67\x67\x65\x72"]("\x63\x6c\x69\x63\x6b");
-        window["\x61\x6c\x65\x72\x74"]("\u8fde\u7eed\u64ad\u653e\u7ed3\u675f\uff0c \u5171\u8fde\u7eed\u64ad\u653e\u4e86 " + LvtbFH1["\x6c\x65\x6e\x67\x74\x68"] + " \u4e2a\u89c6\u9891\uff0c\u5373\u5c06\u5237\u65b0\u9875\u9762");
-        location["\x72\x65\x6c\x6f\x61\x64"]();
-    }
-}
-
-function playThisVideo() {
-    if (fGtZM9 >= LvtbFH1["\x6c\x65\x6e\x67\x74\x68"]) {
-        return;
-    }
-    let duration;
-    let currentTime;
-    setTimeout(() => {
-        let video = window["\x64\x6f\x63\x75\x6d\x65\x6e\x74"]["\x71\x75\x65\x72\x79\x53\x65\x6c\x65\x63\x74\x6f\x72"]('\x76\x69\x64\x65\x6f');
-        let duration = video["\x64\x75\x72\x61\x74\x69\x6f\x6e"];
-        let currentTime = video["\x63\x75\x72\x72\x65\x6e\x74\x54\x69\x6d\x65"];
-        let isPaused = video["\x70\x61\x75\x73\x65\x64"];
-        if (isPaused) {
-            $("\x2e\x6d\x65\x6a\x73\x5f\x5f\x72\x65\x70\x6c\x61\x79")["\x74\x72\x69\x67\x67\x65\x72"]("\x63\x6c\x69\x63\x6b");;
-            console["\x6c\x6f\x67"]("\u5f00\u59cb\u64ad\u653e");
-        }
-        setTimeout(() => {
-            console["\x6c\x6f\x67"](window["\x64\x6f\x63\x75\x6d\x65\x6e\x74"]["\x71\x75\x65\x72\x79\x53\x65\x6c\x65\x63\x74\x6f\x72"]('\x76\x69\x64\x65\x6f')["\x70\x61\x75\x73\x65\x64"] ? "\u6682\u505c" : "\u672a\u505c");
-        }, 500);
-        video["\x70\x6c\x61\x79\x62\x61\x63\x6b\x52\x61\x74\x65"] = ZprJze_nB7;
-        let remain = (duration - currentTime) * ZMUm8;
-        console["\x6c\x6f\x67"]("\u8be5\u89c6\u9891\u5269\u4f59\u64ad\u653e\u65f6\u957f \uff1a" + remain + " \u6beb\u79d2");
-        clearInterval(v3);
-        clearTimeout(iXMuYPum4);
-        if (duration != duration || currentTime != currentTime || remain != remain) {
-            stopContinuousPlay();
-            notification(getNotificationDetails("\u6267\u884c\u5f02\u5e38\uff0c\u5df2\u505c\u6b62\u672c\u6b21\u8fde\u64ad\uff0c\u8bf7\u91cd\u5f00\u59cb\u89c6\u9891\u8fde\u64ad\u3002" + "\n\u4e0b\u4e00\u6b21\u8fde\u7eed\u64ad\u653e\u4ece\u7b2c " + (AIzTA10 + 1) + " \u4e2a\u89c6\u9891\u5f00\u59cb\u3002", 10000, ), null);
-            return;
-        }
-        
-        v3 = setInterval(clickDiv, remain + drrZZ5);
-        iXMuYPum4 = setTimeout(() => {
-            $("\x2e\x63\x6c\x6f\x73\x65\x2d\x77\x69\x6e\x64\x6f\x77")["\x74\x72\x69\x67\x67\x65\x72"]("\x63\x6c\x69\x63\x6b");
-        }, remain);
-    }, D11);
-}
-
-
     /**
      *  open a new tab according the url and execute callback function
      */
@@ -588,6 +487,968 @@ function playThisVideo() {
             callback();
         }
     }
+
+
+
+    /******************************************
+     * play videos
+     * 
+     */
+
+    let playVideoConfig = {
+        isContinuous: false,
+        isPlayAll: false,
+        isPlayPart: false,
+        videoDuration: '',
+    };
+
+
+
+    /**********************************************
+     *  Play  all videos continuously
+     */
+
+    let arr = [];
+    let count = 0;
+    let interval;
+    let timeout;
+    let intervalTime = 4000; //millisecond
+    let isContinuousPaly = false;
+    let rate = 1; // <=10
+    let weight = 1000 / rate;
+    let currentVideoIndex = 0;
+    let nextVideoIndex = 0; //当前第几个视频
+    let bufferTime = 10000; // millisecond
+    let maxRate = 8;
+    let log = '';
+
+    //将所有视频资源存入数组，以作点击使用
+    let a = $("div[data-mime='video']");
+    Object.keys(a).forEach((key) => {
+        //console.log(key, a[key]);
+        arr.push(a[key]);
+    });
+    //console.log(arr.length);
+    // for (let a in arr) {
+    //  console.log(a);
+    // }
+    // 
+    playVideoConfig.videoDuration = $('.video-duration');
+
+
+    function onContinuousPlayFunc() {
+
+        if (playVideoConfig.isContinuous) {
+            layer.msg('【无效操作】 ： 连播功能已开启');
+            return;
+        }
+
+        playVideoConfig.isContinuous = true;
+
+        if (typeof($("#continuousPlay").attr("class")) != "undefined") {
+            let text = "连续播放已开启,无需重复开启";
+            //alert(text);
+            notification(getNotificationDetails(text), null);
+            //layer.msg("test");
+            return;
+        }
+
+        alert("请先关闭 【 Win10 专注助手 】 再使用，否则无法正常提示信息 \n\n 提示：在通知托盘中关闭");
+
+
+        //      $('<div id = "continuousPlay" class="mejs__button">\
+        // <button type="button" aria-controls="mep_0" title="开始连续播放" aria-label="Play" tabindex="0"></button>\
+        // </div>\
+        // <div id = "stopContinuousPlay" class="mejs__button mejs__playpause-button mejs__pause">\
+        // <button type="button" aria-controls="mep_0" title="暂停连续播放" aria-label="Pause" tabindex="0"></button>\
+        // </div>\
+        // <div id = "continuousPlayN" class="mejs__button">\
+        // <button type="button" aria-controls="mep_0" title="开始连续播放(n)" aria-label="Play" tabindex="0"></button>\
+        // </div>\
+        // <div id = "stopContinuousPlayN" class="mejs__button mejs__playpause-button mejs__pause">\
+        // <button type="button" aria-controls="mep_0" title="暂停连续播放(n)" aria-label="Pause" tabindex="0"></button>\
+        // </div>\
+        // ').insertAfter(".mejs__fullscreen-button");
+
+        $('<div id="helper-btn" class="content-center" style="background-color:rgba(255, 255, 255, 0.5);">\
+            <span id="continuousPlayAll" class="video-btn content-center"><i class="fa fa-play-circle" aria-hidden="true" style="cursor:pointer"></i></span>\
+            <span id="stopContinuousPlayAll" class="video-btn content-center"><i class="fa fa-stop-circle" aria-hidden="true" style="cursor:pointer"></i></span>\
+            <span id="continuousPlayPart"  class="video-btn content-center"><i class="fa fa-play" aria-hidden="true" style="cursor:pointer"></i></span>\
+            <span id="stopContinuousPlayPart" class="video-btn content-center"><i class="fa fa-stop" aria-hidden="true" style="cursor:pointer"></i></span>\
+            </div>').insertBefore("#preview-video");
+
+        //For all
+        $("#continuousPlayAll").click(() => {
+            startContinuousPlayAll();
+        });
+
+        $("#stopContinuousPlayAll").click(() => {
+            stopContinuousPlayAll();
+
+        });
+
+
+        //For part
+        $("#continuousPlayPart").click(() => {
+            startContinuousPlayForPart();
+        });
+
+        $("#stopContinuousPlayPart").click(() => {
+            stopContinuousPlayForPart();
+        });
+
+
+
+        let txt = "连续播放已开启，请到视频播放页面使用";
+        notification(getNotificationDetails(txt), null);
+    }
+
+
+    /**
+     * close continuous play
+     * 
+     */
+    function offContinuousPlayFunc() {
+
+        if (!playVideoConfig.isContinuous) {
+            layer.msg('【无效操作】 ： 连播功能已关闭');
+            return;
+        }
+
+        $('#continuousplayAll, #stopContinusPlayAll, #continuousPlayPart, #stopContinusPlayPart').unbind();
+        $('#helper-btn').remove();
+        if (playVideoConfig.isPlayAll) {
+            stopContinuousPlayAll();
+        }
+        if (playVideoConfig.isPlayPart) {
+            stopContinuousPlayForPart();
+        }
+        playVideoConfig.isContinuous = false;
+        layer.msg('连播功能已关闭！');
+    }
+
+
+
+    /**
+     * For all
+     * steps that must be taken when start  playing continuously
+     */
+    function startContinuousPlayAll() {
+
+        if (playVideoConfig.isPlayPart) {
+            layer.msg('【无效操作】 : 正常连播进行中...');
+            return;
+        }
+        if (isContinuousPaly) {
+            layer.msg("【无效操作】：全部连播进行中...");
+            return;
+        }
+
+
+        if (playBySpecifiedRateAndNotify()) {
+            $('.video-duration').remove();
+            playVideoConfig.isPlayAll = true;
+            isContinuousPaly = true;
+            layer.msg('禁用进度条', function() {
+                clickDiv();
+            });
+
+        } else {
+            notification(getNotificationDetails("已取消本次操作！"), null);
+        }
+    }
+
+    /**
+     * For all
+     * steps that must be taken when stopping  playing continuously
+     */
+    function stopContinuousPlayAll() {
+
+
+        if (playVideoConfig.isPlayPart) {
+            stopContinuousPlayForPart();
+            playVideoConfig.isPlayPart = false;
+        }
+
+        if (!isContinuousPaly) {
+            layer.msg("【无效操作】：全部连播未执行");
+            return;
+        }
+        // console.log("llllllllll:"+$('.video-duration') );
+        if ($('.video-duration').length == 0) {
+            $(playVideoConfig.videoDuration).insertAfter('#mep_0');
+        }
+        isContinuousPaly = false;
+        playVideoConfig.isPlayAll = false;
+        //停掉当前还未执行完的 interval timeout
+        clearInterval(interval);
+        clearTimeout(timeout);
+        layer.msg('全部连播已关闭');
+        let stopContinusPlayText = "已退出连续播放模式，但保留了关闭视频即可看完功能;\n下一次连续播放从第 " + (nextVideoIndex + 1) + " 个视频开始。";
+        //alert(stopContinusPlayText);
+        notification(getNotificationDetails(stopContinusPlayText), null);
+    }
+
+    /**
+     * For part
+     * start playing continuously part of all the specified videos 
+     */
+    function startContinuousPlayForPart() {
+
+        if (playVideoConfig.isPlayAll) {
+            layer.msg('【无效操作】 : 全部连播进行中...');
+            return;
+        }
+        if (videoConfig.isContinuousPaly) {
+            layer.msg("【无效操作】：正常连播进行中...");
+            return;
+        }
+
+
+        playVideoConfig.isPlayPart = true;
+        videoConfig.isContinuousPaly = true;
+        play(videoConfig.currentVideoDivs);
+    }
+
+    //部分连播
+    //开始时不需要设置播放速度，
+    //结束时不需要提示下次播放位置
+    //只需开始/结束提即可
+    /**
+     * For part
+     * stop playing continuously part of all the specified videos 
+     */
+    function stopContinuousPlayForPart() {
+
+
+        if (playVideoConfig.isPlayAll) {
+            stopContinuousPlayAll();
+            playVideoConfig.isPlayAll = false;
+        }
+
+
+        if (!videoConfig.isContinuousPaly) {
+            layer.msg("【无效操作】：正常连播未执行");
+            return;
+        }
+
+        videoConfig.isContinuousPaly = false;
+        playVideoConfig.isPlayPart = false;
+
+        let video = document.querySelector('video');
+        let isPaused = video.paused;
+        if (isPaused) {
+            video.play();
+            video.pause();
+        } else {
+            video.pause();
+            video.play();
+        }
+    }
+
+    /**
+     * unlock progress bar and click this div
+     * return the index of layer
+     */
+    function unlockBarAndClickDiv(div, func) {
+        layer.msg('解锁进度条中...', {
+                time: 1500,
+            },
+            function() {
+                let info = '未上锁';
+                if ($(div).attr('data-drag') == 'N') {
+
+                    $(div).attr('data-drag', 'Y');
+                    info = '已解锁！';
+
+                }
+                layer.msg(info, {
+                        time: 1500
+                    },
+                    function() {
+                        $(div).trigger('click');
+                        if (typeof func === "function") {
+                            func();
+                        }
+                    });
+
+            });
+    }
+
+    /**
+     * is or not a number
+     * @param  {[type]}  val [description]
+     * @return {Boolean}     [description]
+     */
+    function isNumber(val) {
+
+        var regPos = /^\d+(\.\d+)?$/; //非负浮点数
+        var regNeg = /^(-(([0-9]+\.[0-9]*[1-9][0-9]*)|([0-9]*[1-9][0-9]*\.[0-9]+)|([0-9]*[1-9][0-9]*)))$/; //负浮点数
+        if (regPos.test(val) || regNeg.test(val)) {
+            return true;
+        } else {
+            return false;
+        }
+
+    }
+
+    /**
+     * play next videos according to the specified  rate inputed by user  and  notify user
+     */
+    function playBySpecifiedRateAndNotify() {
+
+        let inputRate = prompt("以几倍速度进行连续播放呀🧐（最高" + maxRate + "倍哦！）建议1.8倍最佳🤭");
+        //console.log(inputRate);
+        if (inputRate == null) {
+            return false;
+        }
+        if (!isNumber(inputRate)) {
+            let text = "啥❓ 你输入了啥，那是数字吗？\n 再输一次吧，别输出咯！😀";
+            notification(getNotificationDetails(text), null);
+            return false;
+        }
+        rate = inputRate <= 0 ? 1 : (inputRate > maxRate ? maxRate : inputRate);
+        weight = 1000 / rate;
+        let text = "连续播放已开始！\n将以 " + rate + " 倍速 播放 " + (arr.length - nextVideoIndex) + " 个视频。";
+        //console.log(text);
+        notification(getNotificationDetails(text), null);
+        return true;
+
+    }
+    /**
+     * edit those value about duration before sending ajax
+     */
+    function send() {
+        $.ajaxSetup({
+            beforeSend: function() {
+                let argsData = arguments[1].data
+                let falseArgsData = "";
+                let falseVal;
+                for (let k in argsData) {
+
+                    if (k.includes("watch_to")) {
+                        //console.log("before: " + k + " : " + argsData[k]);
+                        falseVal = argsData.duration;
+                        //console.log("after: " + k + " : " + falseVal);
+                    } else {
+                        falseVal = argsData[k];
+                    }
+                    falseArgsData = falseArgsData + "&" + k + "=" + falseVal;
+                }
+                arguments[1].data = falseArgsData.substring(1, falseArgsData.length);
+            },
+            processData: false,
+            complete: function() {
+                console.log("send completed");
+            }
+        });
+    }
+    /**
+     * trigger the click action of the current DIV
+     *
+     */
+    function clickDiv() {
+        currentVideoIndex = count++;
+        nextVideoIndex = currentVideoIndex + 1;
+
+        if (isContinuousPaly == false) {
+            //console.log("在播放第 " + (nextVideoIndex) + " 个视频时退出了连续播放");
+            return;
+        }
+
+        //第一次使用连续播放开启 关闭即可看完
+        if (currentVideoIndex == 0) {
+            send();
+        }
+
+        if (currentVideoIndex < arr.length) {
+            // $(arr[currentVideoIndex]).trigger("click");
+            unlockBarAndClickDiv(arr[currentVideoIndex], playThisVideo);
+            // setTimeout(function() {layer.close(index)}, videoConfig.loadingTime);
+            //console.log(currentVideoIndex + " :  " + arr[currentVideoIndex]);
+            // playThisVideo();
+        } else {
+            setTimeout(() => {
+                clearInterval(interval);
+            }, 0);
+            //console.log("currentVideoIndex: " + currentVideoIndex);
+            //关掉最后一个视频
+            $(".close-window").trigger("click");
+            alert("连续播放结束， 共连续播放了 " + arr.length + " 个视频，即将刷新页面");
+            location.reload();
+        }
+    }
+
+    /**
+     * play the current video until it is over and play the next video
+     */
+    function playThisVideo() {
+        if (currentVideoIndex >= arr.length) {
+            return;
+        }
+        let duration;
+        let currentTime;
+        setTimeout(() => {
+            let video = document.querySelector('video');
+            let duration = video.duration;
+            let currentTime = video.currentTime;
+            let isPaused = video.paused;
+            //console.log(isPaused ? "暂停" : "未停");
+            // if video has paused then play the video
+            if (isPaused) {
+                $(".mejs__replay").trigger("click");
+                //console.log("开始播放");
+            }
+            setTimeout(() => {
+                //console.log(document.querySelector('video').paused ? "暂停" : "未停");
+            }, 500);
+            video.playbackRate = rate;
+
+            //second --> millisecond
+            let remain = (duration - currentTime) * weight;
+
+            console.log("该视频剩余播放时长 ：" + remain + " 毫秒");
+
+            //停掉上一个interval timeout
+            clearInterval(interval);
+            clearTimeout(timeout);
+
+            //is NaN
+            if (duration != duration || currentTime != currentTime || remain != remain) {
+
+                stopContinuousPlayAll();
+                notification(getNotificationDetails("执行异常，已停止本次连播。" +
+                    "\n下一次连续播放从第 " + (nextVideoIndex + 1) + " 个视频开始。", 10000, ), null);
+                return;
+
+            }
+
+
+            interval = setInterval(clickDiv, remain + intervalTime);
+
+            timeout = setTimeout(() => {
+                //console.log("当前视频播放到：" + document.querySelector('video').currentTime);
+                $(".close-window").trigger("click");
+                //console.log("关闭第" + nextVideoIndex + "个视频");
+                //console.log(intervalTime + " 毫秒后播放下一个视频");
+            }, remain);
+
+        }, bufferTime);
+    }
+
+
+    /**
+     * play all the videos since this video
+     */
+    let videoConfig = {
+        videoSum: 0,
+        currentVideoId: '',
+        currentVideoDivs: arr,
+        isContinuousPaly: false,
+        loadingTime: 6000,
+        rate: 1,
+
+    }
+
+    $("div[data-mime='video']").each(function(i, e) {
+        let ts = $(this);
+        ts.attr('id', 'vdoId_' + i);
+        ts.bind('click', function(event) {
+            /* Act on the event */
+            let id = videoConfig.currentVideoId = ts.attr('id');
+            let split = id.split('_');
+            let newFirstIndex = Number(split[1]);
+            videoConfig.currentVideoDivs = arr.slice(newFirstIndex);
+            //console.log(videoConfig.currentVideoDivs);
+
+        });
+        videoConfig.videoSum = ++i;
+    });
+
+
+    //每拿一个阻塞一次，
+    function play(videosArr) {
+
+        layer.msg(
+            "连播开始！(共" + videosArr.length + "个)", {
+                time: 3000
+            },
+
+            async function() {
+                let isOver = true;
+                for (let i = 0; isOver && i < videosArr.length; i++) {
+                    //console.log("time:" + i);
+                    isOver = await playOne(videosArr[i]);
+
+                }
+                //console.log("Done all");
+                videoConfig.isContinuousPaly = false;
+                layer.msg("连播结束！");
+            }
+        );
+    }
+
+
+
+    function playOne(div) {
+        unlockBarAndClickDiv(div);
+        let index = layer.load();
+
+        // if(document.querySelector('video').readyState == 4){
+        //  layer.msg("OK");
+        // };
+        return new Promise(resolve => {
+            setTimeout(() => {
+
+                //close load
+                layer.close(index);
+
+                let video = document.querySelector('video');
+
+                let onPause = function() {
+                    let a = video.currentTime == 0 || video.currentTime == video.duration;
+                    let b = videoConfig.isContinuousPaly;
+                    if (b && a) {
+                        //视频播完会回到开头如果没有回到开头应该在结尾
+                        resolve(true);
+                        //console.log("连播&结束");
+                    } else if (!b && !a) {
+                        //如果按下暂停前关闭了连续播放 == 结束本次列表循环
+                        resolve(false);
+                        //console.log("play stopped");
+                    } else if (b && !a) {
+                        //如果还在连续播放但是按下暂停 == 暂停 ，什么也不做
+                        //console.log("play blocked");
+                    } else if (!b && a) {
+                        //不再连播但播放结束
+                        resolve(false);
+                        //console.log("不连播&结束");
+                    }
+                }
+
+                video.removeEventListener('pause', onPause, false);
+                // let duration = video.duration;
+                // let currentTime = video.currentTime;
+                let isPaused = video.paused;
+                //console.log(isPaused ? "本是暂停" : "本是播放");
+                // if video has paused then play the video
+                if (isPaused) {
+                    $(".mejs__replay").trigger("click");
+                    //console.log("暂停-》开始播放");
+                }
+                setTimeout(() => {
+                    //console.log(document.querySelector('video').paused ? "依旧暂停" : "已打开播放");
+                }, 500);
+                video.playbackRate = keyboardEvent.currentSpeed;
+                // video.addEventListener("ended", function() {
+                //  resolve(true);
+                //  console.log("this over");
+                // });
+                video.addEventListener('pause', onPause);
+
+            }, videoConfig.loadingTime);
+
+        });
+
+    }
+
+
+    /**********************************************
+     * keyMap module
+     */
+    let keyboardEvent = {
+        keyBindings: [],
+        speedStep: 0,
+        rewindTime: 0,
+        advanceTime: 0,
+        fastSpeed: 0,
+        slowerKeyCode: 0,
+        fasterKeyCode: 0,
+        rewindKeyCode: 0,
+        advanceKeyCode: 0,
+        resetKeyCode: 0,
+        fasterKeyCode: 0,
+        currentSpeed: 1.0,
+        functionKey: {
+            keyMap: 0,
+            playAll: 0,
+            stopPlayAll: 0,
+            playPart: 0,
+            stopPlayPart: 0,
+            onContinuousPlayFunc: 0,
+            offContinuousPlayFunc: 0,
+            showTips: 0
+
+        },
+        keyMapInfo: ``
+
+    };
+
+
+    // for video
+    keyboardEvent.keyBindings.push({
+        action: "slower",
+        key: Number(keyboardEvent.slowerKeyCode) || 83,
+        value: Number(keyboardEvent.speedStep) || 0.1,
+        force: false,
+        predefined: true
+    }); // default S
+    keyboardEvent.keyBindings.push({
+        action: "faster",
+        key: Number(keyboardEvent.fasterKeyCode) || 87,
+        value: Number(keyboardEvent.speedStep) || 0.1,
+        force: false,
+        predefined: true
+    }); // default: W
+    keyboardEvent.keyBindings.push({
+        action: "rewind",
+        key: Number(keyboardEvent.rewindKeyCode) || 65,
+        value: Number(keyboardEvent.rewindTime) || 10,
+        force: false,
+        predefined: true
+    }); // default: A
+    keyboardEvent.keyBindings.push({
+        action: "advance",
+        key: Number(keyboardEvent.advanceKeyCode) || 68,
+        value: Number(keyboardEvent.advanceTime) || 10,
+        force: false,
+        predefined: true
+    }); // default: D
+    keyboardEvent.keyBindings.push({
+        action: "reset",
+        key: Number(keyboardEvent.resetKeyCode) || 82,
+        value: 1.0,
+        force: false,
+        predefined: true
+    }); // default: R
+    keyboardEvent.keyBindings.push({
+        action: "fast",
+        key: Number(keyboardEvent.fastKeyCode) || 71,
+        value: Number(keyboardEvent.fastSpeed) || 1.8,
+        force: false,
+        predefined: true
+    }); // default: G
+
+
+    // for functions
+    keyboardEvent.keyBindings.push({
+        action: 'keyMap',
+        key: Number(keyboardEvent.functionKey.keyMap) || 77
+    }); // M
+    keyboardEvent.keyBindings.push({
+        action: 'playAll',
+        key: Number(keyboardEvent.functionKey.playAll) || 90
+    }); // Z
+    keyboardEvent.keyBindings.push({
+        action: 'stopPlayAll',
+        key: Number(keyboardEvent.functionKey.stopPlayAll) || 88
+    }); // X
+    keyboardEvent.keyBindings.push({
+        action: 'playPart',
+        key: Number(keyboardEvent.functionKey.playPart) || 67
+    }); // C
+    keyboardEvent.keyBindings.push({
+        action: 'stopPlayPart',
+        key: Number(keyboardEvent.functionKey.stopPlayPart) || 86
+    }); // V
+    keyboardEvent.keyBindings.push({
+        action: 'onContinuousPlayFunc',
+        key: Number(keyboardEvent.functionKey.onContinuousPlayFunc) || 66
+    }); // B
+    keyboardEvent.keyBindings.push({
+        action: 'offContinuousPlayFunc',
+        key: Number(keyboardEvent.functionKey.offContinuousPlayFunc) || 78
+    }); // N
+
+
+    keyboardEvent.keyBindings.push({
+        action: 'showTips',
+        key: Number(keyboardEvent.functionKey.showTips) || 84
+    }); // T
+
+
+    /**
+     * get the content of the action specified 
+     * the action bound to some event
+     * @return  json
+     */
+    function getKeyBindingsByAction(action) {
+
+        let item = keyboardEvent.keyBindings.find(item => item.action === action);
+        return item;
+
+    }
+
+    /**
+     * get the value  by specified action and keyname
+     * @param  {string} action  [the action bound to some event]
+     * @param  {string} keyname 
+     * @return {[type]}         
+     */
+    function getValueByActionAndKeyname(action, keyname) {
+        return getKeyBindingsByAction(action)[keyname];
+    }
+
+    /**
+     * [get  all  values by specified keyname  ]
+     * @return {[array]} [all values]
+     */
+    function getAllValuesByKeyname(keyname) {
+        let all = [];
+        let arr = keyboardEvent.keyBindings;
+        for (let i in arr) {
+            let x = arr[i];
+            /**
+             * access value by variable key
+             * x.keyname  ==> x[keyname]
+             */
+            all.push(x[keyname]);
+        }
+        // console.log('all:'+ all);
+        return all;
+    }
+
+    function changeKeycode(keycodeArr, toLowercase) {
+
+        let arr = [];
+        for (let i in keycodeArr) {
+            // if (toLowercase) {
+            //  arr.push(keycodeArr[i] + 32);
+            // }else{
+            //  arr.push(keycodeArr[i] - 32);
+            // }
+            toLowercase == true ? arr.push(keycodeArr[i] + 32) : arr.push(keycodeArr[i] - 32);
+
+        }
+        //console.log(keycodeArr + '****' + arr);
+
+        return arr;
+
+    }
+
+    /**
+     * initialize  keyboardEvent.keyMapInfo
+     * @type {[type]}
+     */
+    keyboardEvent.keyMapInfo = `
+        <div id="keyMapInfo">
+        <p class="content-center keyMap-head"><span class="keyMap-name">功能</span><span class="keyMap-value">快捷键</span></p>
+        <hr>
+        <p class="content-center"><span class="keyMap-name">强制关闭Chrome</span><span class="keyMap-value">Alt + F4</span></p>
+        <p class="content-center"><span class="keyMap-name">查看快捷键</span><span class="keyMap-value">shift + m</span></p>
+        <p class="content-center"><span class="keyMap-name">显示提示</span><span class="keyMap-value">shift + t</span></p>
+        <p class="content-center"><span class="keyMap-name">视频加速 （+${getKeyBindingsByAction('faster').value}）</span><span class="keyMap-value">W</span></p>
+        <p class="content-center"><span class="keyMap-name">视频减速 （-${getKeyBindingsByAction('slower').value}）</span><span class="keyMap-value">S</span></p>
+        <p class="content-center"><span class="keyMap-name">视频快退 ${getKeyBindingsByAction('rewind').value}s</span><span class="keyMap-value">A</span></p>
+        <p class="content-center"><span class="keyMap-name">视频前进 ${getKeyBindingsByAction('advance').value}s</span><span class="keyMap-value">D</span></p>
+        <p class="content-center"><span class="keyMap-name">最佳倍速 （${getKeyBindingsByAction('fast').value}）</span><span class="keyMap-value">G</span></p>
+        <p class="content-center"><span class="keyMap-name">重置倍速 （${getKeyBindingsByAction('reset').value}）</span><span class="keyMap-value">R</span></p>
+        <p class="content-center"><span class="keyMap-name">开启连播</span><span class="keyMap-value">shift + b</span></p>
+        <p class="content-center"><span class="keyMap-name">关闭连播</span><span class="keyMap-value">shift + n</span></p>
+        <p class="content-center"><span class="keyMap-name">开始正常连播</span><span class="keyMap-value">shift + c</span></p>
+        <p class="content-center"><span class="keyMap-name">结束正常连播</span><span class="keyMap-value">shift + v</span></p>
+        <p class="content-center"><span class="keyMap-name">开始全部连播</span><span class="keyMap-value">shift + z</span></p>
+        <p class="content-center"><span class="keyMap-name">结束全部连播</span><span class="keyMap-value">shift + x</span></p>
+        </div>
+        `;
+
+    /**
+     * bind keyboard eventListener to document
+     */
+    $(document).bind('keypress', function(event) {
+        /* Act on the event */
+        let keyCode = event.keyCode;
+        let altKey = event.altKey;
+        let ctrlKey = event.ctrlKey;
+        let shiftKey = event.shiftKey;
+        //console.log("keyCode:" + keyCode);
+
+        let lowercase = changeKeycode(getAllValuesByKeyname('key').slice(0, 6), true);
+        // console.log('[119, 115, 97, 100, 114, 103]:' + lowercase);
+        let funcKeyLowercase = changeKeycode(getAllValuesByKeyname('key').slice(6), true);
+        // console.log("[109, 122, 120, 99, 118, 98, 110]:" + funcKeyLowercase);
+        let funcKeyUppercase = getAllValuesByKeyname('key').slice(6);
+        // console.log("[77, 90, 88, 67, 86, 66, 78]：" + funcKeyUppercase);
+        let playVdoFuncKeyLowercase = getAllValuesByKeyname('key').slice(7, 11);
+
+        // shift + lowercase => uppercase    小写键盘
+        let shiftAndLowercase = shiftKey && ((funcKeyUppercase.find(item => item === keyCode) === undefined ? false : true));
+        // shift + uppercase => lowercase    大写键盘
+        let shiftAndUppercase = shiftKey && ((funcKeyLowercase.find(item => item === keyCode) === undefined ? false : true));
+
+        let shiftAndPlayVdoLowercase = shiftKey && ((playVdoFuncKeyLowercase.find(item => item === keyCode) === undefined ? false : true));
+
+        if (!document.querySelector('video').paused) {
+
+            if (lowercase.find(item => item === keyCode)) {
+                //console.log("is pause:"+ document.querySelector('video').paused);
+                layer.msg('请打开大写键盘 以使用 【视频控件】');
+                return;
+            }
+            if (shiftAndUppercase) {
+                layer.msg('请关闭大写键盘 以使用完整的快捷键功能');
+                return;
+            }
+            if (shiftAndPlayVdoLowercase) {
+                if (!playVideoConfig.isContinuous) {
+                    layer.msg('请先开启连播功能');
+                    return;
+                }
+
+            }
+
+        } else if (document.querySelector('video').paused) {
+
+            if (shiftAndUppercase) {
+                layer.msg('请关闭大写键盘！以使用完整的快捷键功能');
+                return;
+            }
+            //四个连播功能（ZXCV）在没有开启连播时，提醒开启连播功能
+            if (shiftAndPlayVdoLowercase) {
+                if (!playVideoConfig.isContinuous) {
+                    layer.msg('请先开启连播功能');
+                    return;
+                }
+            }
+            if (!shiftAndLowercase) {
+                return;
+            }
+
+        }
+
+
+        let item = keyboardEvent.keyBindings.find(item => item.key === keyCode);
+        if (item) {
+
+            let video = document.querySelector('video');
+            doAction(item, video);
+
+        }
+
+    });
+
+
+
+    /**
+     * [doAction description]
+     * @param  {[type]} item  [that event triggered]
+     * @param  {[type]} video [description]
+     */
+    function doAction(item, video) {
+
+        let action = item.action;
+        let value = item.value;
+        let num = (video.playbackRate).toFixed(1);
+
+
+        if (action == 'slower') {
+
+            video.playbackRate -= value;
+            num = (video.playbackRate).toFixed(1);
+            keyboardEvent.currentSpeed = num;
+            layer.msg(num + " 倍");
+
+        } else if (action == 'faster') {
+
+            video.playbackRate += value;
+            num = (video.playbackRate).toFixed(1);
+            keyboardEvent.currentSpeed = num;
+            layer.msg(num + " 倍");
+
+        } else if (action == 'rewind') {
+
+            video.currentTime -= value;
+            layer.msg("- " + value + 's');
+            return;
+
+        } else if (action == 'advance') {
+
+            video.currentTime += value;
+            layer.msg("+ " + value + 's');
+            return;
+
+        } else if (action == 'reset') {
+
+            video.playbackRate = value;
+            num = (video.playbackRate).toFixed(1);
+            keyboardEvent.currentSpeed = num;
+            layer.msg(num + " 倍");
+
+        } else if (action == 'fast') {
+
+            video.playbackRate = value;
+            num = (video.playbackRate).toFixed(1);
+            keyboardEvent.currentSpeed = num;
+            layer.msg(num + " 倍");
+
+        } else if (action == 'keyMap') {
+
+            let i = layer.alert(
+                keyboardEvent.keyMapInfo, {
+                    //icon: 1
+                    anim: 2
+                },
+                function(index) {
+                    //layer.msg('操作成功！');
+                    layer.close(index);
+                });
+
+            layer.title('Key Map', i);
+            return;
+
+
+        } else if (action == 'playAll') {
+            $("#continuousPlayAll").trigger('click');
+            return;
+
+        } else if (action == 'stopPlayAll') {
+            $("#stopContinuousPlayAll").trigger('click');
+            return;
+
+        } else if (action == 'playPart') {
+            $("#continuousPlayPart").trigger('click');
+            return;
+
+        } else if (action == 'stopPlayPart') {
+            $("#stopContinuousPlayPart").trigger('click');
+            return;
+        } else if (action == 'onContinuousPlayFunc') {
+            onContinuousPlayFunc();
+            return;
+
+        } else if (action == 'offContinuousPlayFunc') {
+            offContinuousPlayFunc();
+            return;
+        } else if (action == 'showTips') {
+            showTips();
+            return;
+        }
+
+
+
+    }
+
+
+    /************************************
+     * tips module
+     */
+
+    let tipsConfig = {
+        params: {
+            tipsMore: true,
+            tips: 1,
+            time: 6000
+        },
+    };
+
+    function showTips() {
+        layer.tips('全部连播', '#continuousPlayAll', tipsConfig.params);
+        layer.tips('终止全部连播', '#stopContinuousPlayAll', tipsConfig.params);
+        layer.tips('正常连播', '#continuousPlayPart', tipsConfig.params);
+        layer.tips('终止正常连播', '#stopContinuousPlayPart', tipsConfig.params);
+    }
+
+
 
     /**
      * MosoteachHelper CSS
@@ -632,6 +1493,53 @@ background-color:rgba(204, 0, 0,0.6);
 #downloadSrc{ background:rgba(0, 151, 179,0.7);}
 #choose{ background:rgba(204, 0, 0,0.6);}
 //#refresh{ background:rgba(0, 151, 179,0.7);}
+
+.content-center{
+    display: -webkit-box;
+    display: -moz-box;
+    display: -ms-flexbox;
+    display: -webkit-flex;
+    display: flex;
+    /*垂直居中*/
+    -webkit-box-align: center;
+    -moz-box-align: center;
+    -ms-flex-align: center;
+    -webkit-align-items: center;
+    justify-content: center;
+    align-items: center;
+    justify-content: center;
+}
+
+.video-btn{
+    color:white; 
+    font-size:20px; 
+    width:20%;
+    height: 34px;
+}
+
+#keyMapInfo{
+    width:300px;
+}
+
+.keyMap-head{
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.keyMap-name{
+    width: 50%;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.keyMap-value{
+    width: 50%;
+    font-size: 16px;
+    font-weight: 700;
+    color: orange;
+}
+
 </style>`;
     $(styleTag).appendTo('head');
 
@@ -656,7 +1564,7 @@ background-color:rgba(204, 0, 0,0.6);
 <span style="color: #0BD;font-weight:600; font-size:16px"> 功能区 </span>\
 <span > Powered by </span>\
 <span ><a href="https://greasyfork.org/zh-CN/scripts/390978-%E4%BA%91%E7%8F%AD%E8%AF%BE%E9%AB%98%E6%95%88%E5%8A%A9%E6%89%8B">云班课高效助手  </a></span>\
-<span style="color: red;font-weight:400; font-size:13px">  强制关闭chrome快捷键 ：Alt + F4 </span>\
+<span style="color: orange;font-weight:500; font-size:14px">  查看快捷键 ：shift + m </span>\
 <i class="slidedown-button manual-order-hide-part icon-angle-down" data-sort="1001"></i>\
 </div>\
 </div>\
@@ -734,15 +1642,15 @@ onkeyup="this.value=this.value.replace(/[^\\d][-]/g,\'\')" onafterpaste="this.va
 <div class="clear30"></div>\
 <div class="res-row-title" >\
 <span class="res-group-name" >功能测试模块  </span>\
-<span style="color: red" >（  给个反馈可否？）</span>\
-<span style="color: red"><a href = "https://greasyfork.org/en/scripts/390978-%E4%BA%91%E7%8F%AD%E8%AF%BE%E9%AB%98%E6%95%88%E5%8A%A9%E6%89%8B/feedback">点此反馈</a></span>\
+<span style="color: red"><a href = "https://greasyfork.org/en/scripts/390978-%E4%BA%91%E7%8F%AD%E8%AF%BE%E9%AB%98%E6%95%88%E5%8A%A9%E6%89%8B/feedback">  点此反馈</a></span>\
 <i class="icon-angle-down slidedown-button manual-order-hide-part" data-sort="1002"></i>\
 </div>\
 <div class="hide-div" data-status="N" data-sort="1002" style="display: none;">\
 <div class="res-row drag-res-row" style="height:37px !important">\
 <div class="operation manual-order-hide-part" style="float:left;!important">\
 <ul style="margin-top:0px;">\
-<li id ="continuousPlayMode">开启视频连续播放模式（按钮在视频界面）</li>\
+<li id ="continuousPlayMode">开启视频连续播放控件（按钮在视频界面）</li>\
+<li >新增快捷键系统（  shift + m  ）</li>\
 <div class="clear"></div>\
 </ul>\
 </div>\
@@ -924,7 +1832,7 @@ onkeyup="this.value=this.value.replace(/[^\\d][-]/g,\'\')" onafterpaste="this.va
     });
 
     /**
-     * Play video continuously
+     * Play videos continuously
      */
     $(document).on('click', '#continuousPlayMode', () => {
         continuousPlay()
