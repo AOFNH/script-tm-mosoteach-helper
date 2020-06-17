@@ -1642,15 +1642,15 @@ onkeyup="this.value=this.value.replace(/[^\\d][-]/g,\'\')" onafterpaste="this.va
 <div class="clear30"></div>\
 <div class="res-row-title" >\
 <span class="res-group-name" >功能测试模块  </span>\
-<span style="color: red"><a href = "https://greasyfork.org/en/scripts/390978-%E4%BA%91%E7%8F%AD%E8%AF%BE%E9%AB%98%E6%95%88%E5%8A%A9%E6%89%8B/feedback">  点此反馈</a></span>\
+<span style="color: red"><a href = "https://greasyfork.org/en/scripts/390978-%E4%BA%91%E7%8F%AD%E8%AF%BE%E9%AB%98%E6%95%88%E5%8A%A9%E6%89%8B/feedback">  点此反馈 （维护不易，还请好评 🙇 ‍）</a></span>\
 <i class="icon-angle-down slidedown-button manual-order-hide-part" data-sort="1002"></i>\
 </div>\
 <div class="hide-div" data-status="N" data-sort="1002" style="display: none;">\
 <div class="res-row drag-res-row" style="height:37px !important">\
 <div class="operation manual-order-hide-part" style="float:left;!important">\
 <ul style="margin-top:0px;">\
-<li id ="continuousPlayMode">开启视频连续播放控件（按钮在视频界面）</li>\
-<li >新增快捷键系统（  shift + m  ）</li>\
+<li id ="continuousPlayMode">视频连续播放控件（按钮在视频界面）</li>\
+<li > 快捷键系统（  shift + m  ）</li>\
 <div class="clear"></div>\
 </ul>\
 </div>\
