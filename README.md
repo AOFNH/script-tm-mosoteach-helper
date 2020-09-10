@@ -1,4 +1,4 @@
-[![](https://img.shields.io/badge/version-v1.8.0-blue)](https://github.com/AOFNH/mosoteach-helper)[![](https://img.shields.io/badge/downloads-9k-green)](https://greasyfork.org/en/scripts/390978-%E4%BA%91%E7%8F%AD%E8%AF%BE%E9%AB%98%E6%95%88%E5%8A%A9%E6%89%8B)
+[![](https://img.shields.io/badge/version-v1.8.0-blue)]()[![](https://img.shields.io/badge/downloads-9k-green)](https://greasyfork.org/en/scripts/390978-%E4%BA%91%E7%8F%AD%E8%AF%BE%E9%AB%98%E6%95%88%E5%8A%A9%E6%89%8B)
 
 # Mosoteach Helper
 
@@ -77,7 +77,7 @@ author： bellamy.nh
 
 [本脚本反馈页面](https://greasyfork.org/en/scripts/390978-%E4%BA%91%E7%8F%AD%E8%AF%BE%E9%AB%98%E6%95%88%E5%8A%A9%E6%89%8B/feedback)  
 
-Email: [bellamy\_n\_h_1@163.com](mailto:bellamy_n_h_1@163.com)
+[Email](mailto:bellamy_n_h_1@163.com)
 
 ----
 
