@@ -1,5 +1,6 @@
 // ==UserScript==
 // @name         云班课高效助手
+// @name:zh-CN   云班课高效助手
 // @author       bellamy.n.h
 // @namespace    http://tampermonkey.net/
 // @version      1.80
