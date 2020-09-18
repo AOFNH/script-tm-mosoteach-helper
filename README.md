@@ -1,4 +1,4 @@
-[![](https://img.shields.io/badge/version-v1.8.0-blue)]()	[![](https://img.shields.io/badge/downloads-9k-green)](https://greasyfork.org/en/scripts/390978-%E4%BA%91%E7%8F%AD%E8%AF%BE%E9%AB%98%E6%95%88%E5%8A%A9%E6%89%8B)
+[![](https://img.shields.io/badge/version-v1.8.5-blue)]()	[![](https://img.shields.io/badge/downloads-9k-green)](https://greasyfork.org/en/scripts/390978-%E4%BA%91%E7%8F%AD%E8%AF%BE%E9%AB%98%E6%95%88%E5%8A%A9%E6%89%8B)
 
 # Mosoteach Helper
 
