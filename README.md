@@ -34,7 +34,7 @@
 
 ## 更新日志
 
-### Version 1.85 —— 1.86
+### Version 1.85 — 1.86
 1. 修复连播视频时数量错误BUG
 2. 重构快捷键视图生成代码
 3. Docking Statistical Analysis System
