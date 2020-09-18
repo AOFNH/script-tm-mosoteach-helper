@@ -37,7 +37,8 @@
 ### Version 1.85
 1. 修复连播视频时数量错误BUG
 2. 重构快捷键视图生成代码
-3. Add Statistical Analysis System
+3. Docking Statistical Analysis System
+4. 限制对快捷键的频繁操作
 
 ### Version 1.80
 1. 新增视频控件：新增视频倍速控件(支持 倍速递加、递减；倍速重置；一键最佳倍速；视频快进、快退)  

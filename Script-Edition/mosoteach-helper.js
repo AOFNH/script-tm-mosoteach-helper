@@ -7,7 +7,7 @@
 // @description  【高效再升级😃！高效使用云班课，一个脚本就够了！😎】 【🧡视频倍速：新增视频倍速控件(支持 倍速递加、递减；倍速重置；一键最佳倍速；视频快进、快退)】、【💛视频连播：新版视频连播功能，支持从当前视频开始连播（配合视频控件，体验更好）】、【💙快捷键：新增快捷键系统,常用功能已都加入，高效更进一步】、【💚资源处理：批量点击、下载、批处理】 
 // @match        https://www.mosoteach.cn/web/index.php*
 // @include      *://www.mosoteach.cn/web/index.php*
-// @note         Version 1.85    修复连播视频时数量错误BUG；重构快捷键视图生成代码，降冗余；Add Statistical Analysis System。
+// @note         Version 1.85    修复连播视频时数量错误BUG；重构快捷键视图生成代码，降冗余；Add Statistical Analysis System；限制对快捷键的频繁操作。
 // @note         Version 1.80    😁【新增视频倍速控件(支持 倍速递加、递减；倍速重置；一键最佳倍速；视频快进、快退)】、【新版视频连播功能，支持从当前视频开始连播（配合视频控件，可达到极度自由）】、【新增快捷键系统,常用功能已都加入，高效更进一步】、【修复模拟点击/下载失效Bug】、【限制全部连播最大速度为8倍】
 // @note         Version 1.70    视频最高16倍速连播；调用系统通知，反馈更佳；
 // @note         Version 1.65    偷偷改了些小Bug 🤭，使连播更顺畅。下个版本上16倍速连播喽😊
@@ -1279,7 +1279,17 @@ $(function () {
     /**
      * bind keyboard eventListener to document
      */
+    let lastTimeStamp = 0;
     $(document).bind('keypress', function (event) {
+        /* 禁止频繁操作 */
+        let curTimeStamp = event.timeStamp;
+        let interval = curTimeStamp - lastTimeStamp;
+        lastTimeStamp = curTimeStamp;
+        if( interval < 250){
+            layer.msg("操作过于频繁");
+            return;
+        }
+
         /* Act on the event */
         let keyCode = event.keyCode;
         let altKey = event.altKey;
