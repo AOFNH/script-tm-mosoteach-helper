@@ -3,10 +3,11 @@
 // @name:zh-CN   云班课高效助手
 // @author       bellamy.n.h
 // @namespace    http://tampermonkey.net/
-// @version      1.80
-// @description  【高效再度升级啦😃！高效使用云班课，装这一个脚本就够了！😎】 【🧡视频倍速：新增视频倍速控件(支持 倍速递加、递减；倍速重置；一键最佳倍速；视频快进、快退)】、【💛视频连播：新版视频连播功能，支持从当前视频开始连播（配合视频控件，可达到极度自由）】、【💙快捷键：新增快捷键系统,常用功能已都加入，高效更进一步】、【💚资源处理：批量点击、下载、批处理】 
+// @version      1.85
+// @description  【高效再升级😃！高效使用云班课，一个脚本就够了！😎】 【🧡视频倍速：新增视频倍速控件(支持 倍速递加、递减；倍速重置；一键最佳倍速；视频快进、快退)】、【💛视频连播：新版视频连播功能，支持从当前视频开始连播（配合视频控件，体验更好）】、【💙快捷键：新增快捷键系统,常用功能已都加入，高效更进一步】、【💚资源处理：批量点击、下载、批处理】 
 // @match        https://www.mosoteach.cn/web/index.php*
 // @include      *://www.mosoteach.cn/web/index.php*
+// @note         Version 1.85    修复连播视频时数量错误BUG；重构快捷键视图生成代码，降冗余；Add Statistical Analysis System。
 // @note         Version 1.80    😁【新增视频倍速控件(支持 倍速递加、递减；倍速重置；一键最佳倍速；视频快进、快退)】、【新版视频连播功能，支持从当前视频开始连播（配合视频控件，可达到极度自由）】、【新增快捷键系统,常用功能已都加入，高效更进一步】、【修复模拟点击/下载失效Bug】、【限制全部连播最大速度为8倍】
 // @note         Version 1.70    视频最高16倍速连播；调用系统通知，反馈更佳；
 // @note         Version 1.65    偷偷改了些小Bug 🤭，使连播更顺畅。下个版本上16倍速连播喽😊
@@ -18,6 +19,8 @@
 // @icon         https://s1.ax1x.com/2020/05/18/Yf6Kcd.png
 // @require      https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/layer/2.3/layer.js
+// @require      https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js
+// @require      https://cdn.jsdelivr.net/npm/qs@6.9.4/dist/qs.min.js
 // @grant        GM_openInTab
 // @grant        GM_notification
 // @grant        GM_getValue
@@ -27,7 +30,7 @@
 // ==/UserScript==
 
 
-$(function() {
+$(function () {
     'use strict';
 
     var config = {
@@ -41,7 +44,9 @@ $(function() {
         layer_js: "https://cdnjs.cloudflare.com/ajax/libs/layer/2.3/layer.js",
         jquery_js: "https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js",
         layui_js: "https://cdn.jsdelivr.net/npm/layui-src@2.5.5/dist/layui.min.js",
-        fontawesome_css: "https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.13.0/css/all.min.css"
+        fontawesome_css: "https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.13.0/css/all.min.css",
+        base: "https://mst.bellamy.top:8443",
+
     };
 
     var openInTab;
@@ -50,6 +55,7 @@ $(function() {
     var notification;
     var delVal;
     var listVals;
+    var qs = Qs;
 
     if (config.isCRX) {
         console.log("in CRX");
@@ -525,7 +531,9 @@ $(function() {
 
     //将所有视频资源存入数组，以作点击使用
     let a = $("div[data-mime='video']");
-    Object.keys(a).forEach((key) => {
+    let tempArr = Object.keys(a);
+    let tpArr = tempArr.slice(0, tempArr.length - 2 );
+    tpArr.forEach((key) => {
         //console.log(key, a[key]);
         arr.push(a[key]);
     });
@@ -546,7 +554,7 @@ $(function() {
 
         playVideoConfig.isContinuous = true;
 
-        if (typeof($("#continuousPlay").attr("class")) != "undefined") {
+        if (typeof ($("#continuousPlay").attr("class")) != "undefined") {
             let text = "连续播放已开启,无需重复开启";
             //alert(text);
             notification(getNotificationDetails(text), null);
@@ -650,7 +658,7 @@ $(function() {
             $('.video-duration').remove();
             playVideoConfig.isPlayAll = true;
             isContinuousPaly = true;
-            layer.msg('禁用进度条', function() {
+            layer.msg('禁用进度条', function () {
                 clickDiv();
             });
 
@@ -753,9 +761,9 @@ $(function() {
      */
     function unlockBarAndClickDiv(div, func) {
         layer.msg('解锁进度条中...', {
-                time: 1500,
-            },
-            function() {
+            time: 1500,
+        },
+            function () {
                 let info = '未上锁';
                 if ($(div).attr('data-drag') == 'N') {
 
@@ -764,9 +772,9 @@ $(function() {
 
                 }
                 layer.msg(info, {
-                        time: 1500
-                    },
-                    function() {
+                    time: 1500
+                },
+                    function () {
                         $(div).trigger('click');
                         if (typeof func === "function") {
                             func();
@@ -821,7 +829,7 @@ $(function() {
      */
     function send() {
         $.ajaxSetup({
-            beforeSend: function() {
+            beforeSend: function () {
                 let argsData = arguments[1].data
                 let falseArgsData = "";
                 let falseVal;
@@ -839,7 +847,7 @@ $(function() {
                 arguments[1].data = falseArgsData.substring(1, falseArgsData.length);
             },
             processData: false,
-            complete: function() {
+            complete: function () {
                 console.log("send completed");
             }
         });
@@ -919,7 +927,7 @@ $(function() {
 
                 stopContinuousPlayAll();
                 notification(getNotificationDetails("执行异常，已停止本次连播。" +
-                    "\n下一次连续播放从第 " + (nextVideoIndex + 1) + " 个视频开始。", 10000, ), null);
+                    "\n下一次连续播放从第 " + (nextVideoIndex + 1) + " 个视频开始。", 10000), null);
                 return;
 
             }
@@ -951,10 +959,10 @@ $(function() {
 
     }
 
-    $("div[data-mime='video']").each(function(i, e) {
+    $("div[data-mime='video']").each(function (i, e) {
         let ts = $(this);
         ts.attr('id', 'vdoId_' + i);
-        ts.bind('click', function(event) {
+        ts.bind('click', function (event) {
             /* Act on the event */
             let id = videoConfig.currentVideoId = ts.attr('id');
             let split = id.split('_');
@@ -972,10 +980,10 @@ $(function() {
 
         layer.msg(
             "连播开始！(共" + videosArr.length + "个)", {
-                time: 3000
-            },
+            time: 3000
+        },
 
-            async function() {
+            async function () {
                 let isOver = true;
                 for (let i = 0; isOver && i < videosArr.length; i++) {
                     //console.log("time:" + i);
@@ -1006,7 +1014,7 @@ $(function() {
 
                 let video = document.querySelector('video');
 
-                let onPause = function() {
+                let onPause = function () {
                     let a = video.currentTime == 0 || video.currentTime == video.duration;
                     let b = videoConfig.isContinuousPaly;
                     if (b && a) {
@@ -1081,7 +1089,8 @@ $(function() {
             showTips: 0
 
         },
-        keyMapInfo: ``
+        keyMapInfo: ``,
+        keyMapDetail: []
 
     };
 
@@ -1228,35 +1237,49 @@ $(function() {
     }
 
     /**
-     * initialize  keyboardEvent.keyMapInfo
+     * initialize  keyboardEvent: keyMapInfo keyMapDetail
      * @type {[type]}
      */
+
+    keyboardEvent.keyMapDetail = [
+
+        ['强制关闭Chrome', 'Alt + F4'],
+        ['查看快捷键', 'shift + m'],
+        ['弹出提示', 'shift + t'],
+        [`视频加速 （+${getKeyBindingsByAction('faster').value}）`, 'W'],
+        [`视频减速 （-${getKeyBindingsByAction('slower').value}）`, 'S'],
+        [`视频快退 ${getKeyBindingsByAction('rewind').value}s`, 'A'],
+        [`视频快进 ${getKeyBindingsByAction('advance').value}s`, 'D'],
+        [`最佳倍速 （${getKeyBindingsByAction('fast').value}）`, 'G'],
+        [`重置倍速 （${getKeyBindingsByAction('reset').value}）`, 'R'],
+        ['开启连播', 'shift + b'],
+        ['关闭连播', 'shift + n'],
+        ['开始正常连播', 'shift + c'],
+        ['结束正常连播', 'shift + v'],
+        ['开始全部连播', 'shift + z'],
+        ['结束全部连播', 'shift + x']
+    
+    ];
+    //获取 快捷键列表
+    function getKeyMapView(){
+        let viewArr =  keyboardEvent.keyMapDetail.map((item)=>{
+            return  `<p class="content-center"><span class="keyMap-name"> ${item[0]} </span> <span class="keyMap-value"> ${item[1]} </span></p>`
+        });
+        return viewArr.join(' ');
+    } 
+
     keyboardEvent.keyMapInfo = `
-        <div id="keyMapInfo">
-        <p class="content-center keyMap-head"><span class="keyMap-name">功能</span><span class="keyMap-value">快捷键</span></p>
-        <hr>
-        <p class="content-center"><span class="keyMap-name">强制关闭Chrome</span><span class="keyMap-value">Alt + F4</span></p>
-        <p class="content-center"><span class="keyMap-name">查看快捷键</span><span class="keyMap-value">shift + m</span></p>
-        <p class="content-center"><span class="keyMap-name">显示提示</span><span class="keyMap-value">shift + t</span></p>
-        <p class="content-center"><span class="keyMap-name">视频加速 （+${getKeyBindingsByAction('faster').value}）</span><span class="keyMap-value">W</span></p>
-        <p class="content-center"><span class="keyMap-name">视频减速 （-${getKeyBindingsByAction('slower').value}）</span><span class="keyMap-value">S</span></p>
-        <p class="content-center"><span class="keyMap-name">视频快退 ${getKeyBindingsByAction('rewind').value}s</span><span class="keyMap-value">A</span></p>
-        <p class="content-center"><span class="keyMap-name">视频前进 ${getKeyBindingsByAction('advance').value}s</span><span class="keyMap-value">D</span></p>
-        <p class="content-center"><span class="keyMap-name">最佳倍速 （${getKeyBindingsByAction('fast').value}）</span><span class="keyMap-value">G</span></p>
-        <p class="content-center"><span class="keyMap-name">重置倍速 （${getKeyBindingsByAction('reset').value}）</span><span class="keyMap-value">R</span></p>
-        <p class="content-center"><span class="keyMap-name">开启连播</span><span class="keyMap-value">shift + b</span></p>
-        <p class="content-center"><span class="keyMap-name">关闭连播</span><span class="keyMap-value">shift + n</span></p>
-        <p class="content-center"><span class="keyMap-name">开始正常连播</span><span class="keyMap-value">shift + c</span></p>
-        <p class="content-center"><span class="keyMap-name">结束正常连播</span><span class="keyMap-value">shift + v</span></p>
-        <p class="content-center"><span class="keyMap-name">开始全部连播</span><span class="keyMap-value">shift + z</span></p>
-        <p class="content-center"><span class="keyMap-name">结束全部连播</span><span class="keyMap-value">shift + x</span></p>
-        </div>
-        `;
+    <div id="keyMapInfo">
+    <p class="content-center keyMap-head"><span class="keyMap-name">功能</span><span class="keyMap-value">快捷键</span></p>
+    <hr>
+    ${getKeyMapView()}
+    </div>
+    `;
 
     /**
      * bind keyboard eventListener to document
      */
-    $(document).bind('keypress', function(event) {
+    $(document).bind('keypress', function (event) {
         /* Act on the event */
         let keyCode = event.keyCode;
         let altKey = event.altKey;
@@ -1341,6 +1364,10 @@ $(function() {
         let value = item.value;
         let num = (video.playbackRate).toFixed(1);
 
+        // send a record 
+        if (keyboardEventMap.has(action)) {
+            record(keyboardEventMap.get(action))
+        }
 
         if (action == 'slower') {
 
@@ -1386,10 +1413,10 @@ $(function() {
 
             let i = layer.alert(
                 keyboardEvent.keyMapInfo, {
-                    //icon: 1
-                    anim: 2
-                },
-                function(index) {
+                //icon: 1
+                anim: 2
+            },
+                function (index) {
                     //layer.msg('操作成功！');
                     layer.close(index);
                 });
@@ -1448,6 +1475,75 @@ $(function() {
         layer.tips('正常连播', '#continuousPlayPart', tipsConfig.params);
         layer.tips('终止正常连播', '#stopContinuousPlayPart', tipsConfig.params);
     }
+
+    /**********************************
+     * statistics
+     */
+    var meta= '<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"/>';
+    $("head").prepend(meta);
+    const clickEventMap = new Map([
+        ['mode-click', 1],
+        ['mode-download', 2],
+        ['refresh', 3],
+        ['reset', 4],
+        ['choose', 5],
+        ['confirm', 7],
+        ['downloadSrc', 8],
+        ['download-res', 9],
+        ['forward', 10],
+        ['reverse', 11],
+        ['continuousPlayAll', 26],
+        ['stopContinuousPlayAll', 27],
+        ['continuousPlayPart', 28],
+        ['stopContinuousPlayPart', 29],
+    ]);
+    const keyboardEventMap = new Map([
+        ['keyMap', 12],
+        ['showTips', 13],
+        ['faster', 14],
+        ['slower', 15],
+        ['rewind', 16],
+        ['advance', 17],
+        ['fast', 18],
+        ['reset', 19],
+        ['onContinuousPlayFunc', 20],
+        ['offContinuousPlayFunc', 21],
+        ['playPart', 22],
+        ['stopPlayPart', 23],
+        ['playAll', 24],
+        ['stopPlayAll', 25]
+    ]);
+    let statConfig = {
+        recordURL: config.base + '/hits/saveOrUpdateUsePostWithoutCORS',
+    }
+    let record = (fcId) => {
+
+        let params = {
+            htFcId: fcId
+        }
+        axios({
+            method: 'POST',
+            url: statConfig.recordURL,
+            data: qs.stringify(params),
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        }).then((response)=>{
+            //succ
+            console.log("succ")
+        }).catch((error)=>{
+            //err
+            console.log("err")
+        });
+    }
+
+    window.addEventListener("click", (event) => {
+        let id = event.target.id;
+        if (clickEventMap.has(id)) {
+            record(clickEventMap.get(id))
+        }
+    });
+
 
 
 
@@ -1545,14 +1641,14 @@ background-color:rgba(204, 0, 0,0.6);
     $(styleTag).appendTo('head');
 
     //为每个资源添加下载按钮
-    $(".res-row-open-enable").each(function() {
+    $(".res-row-open-enable").each(function () {
         if ($(this).find(".download-res-button").length > 0) return; //如果已经存在下载按钮（例如mp3），则不再添加
-        $(this).find("ul").html('<li class="download-ress download-res-button">下载</li>' + $(this).find("ul").html());
-        // $(this).find("ul").html('<li class="forward">正序点击</li>' + $(this).find("ul").html());
-        // $(this).find("ul").html('<li class="reverse">倒序点击</li>' + $(this).find("ul").html());
+        $(this).find("ul").html('<li id="download-res" class="download-ress download-res-button">下载</li>' + $(this).find("ul").html());
+        // $(this).find("ul").html('<li id="forward">正序点击</li>' + $(this).find("ul").html());
+        // $(this).find("ul").html('<li id="reverse">倒序点击</li>' + $(this).find("ul").html());
     });
     //单个资源下载
-    $(document).on('click', '.download-ress', function() {
+    $(document).on('click', '#download-res', function () {
         var resHref = $(this).parents(".res-row-open-enable").attr('data-href');
         window.open(resHref);
     });
@@ -1632,7 +1728,7 @@ onkeyup="this.value=this.value.replace(/[^\\d][-]/g,\'\')" onafterpaste="this.va
 <div class="hide-div" data-status="N" data-sort="999" style="display: none;">\
 <div class="res-row drag-res-row" style="height:37px !important">\
 <div class="operation manual-order-hide-part" style="float:left;!important">\
-<ul style="margin-top:0px;"><li class="reverse">倒序点击</li><li class="forward">正序点击</li>\
+<ul style="margin-top:0px;"><li id="reverse">倒序点击</li><li id="forward">正序点击</li>\
 <div class="clear"></div>\
 </ul>\
 </div>\
@@ -1674,7 +1770,7 @@ onkeyup="this.value=this.value.replace(/[^\\d][-]/g,\'\')" onafterpaste="this.va
     $("#module-1,#module-2").css("display", "none");
     $("#confirm, #downloadSrc, #mode-click, #mode-download").css("display", "inline");
     // change mode
-    $(document).on('click', '#mode-click', function() {
+    $(document).on('click', '#mode-click', function () {
         $("#module-1, #module-2").css("display", "block");
         //         等价于
         //         document.getElementById("module-1").style.display="block";
@@ -1684,7 +1780,7 @@ onkeyup="this.value=this.value.replace(/[^\\d][-]/g,\'\')" onafterpaste="this.va
         //         $("#mode-click").css({"background-color":"#0BD","color":"#fff"});
         $("#modeName").text("模拟点击");
         if (browserType() == "Chrome") {
-            newTabAlert("onDownload", "chrome://settings/downloads", 'active', function() {
+            newTabAlert("onDownload", "chrome://settings/downloads", 'active', function () {
                 alert("操作提醒：\n" + "务必操作，否则请不要向下执行任何操作！！！\n" + "\n" +
                     "（识别到您使用的是Chrome浏览器）" + "\n\n" +
                     "   已自动为你打开浏览器【设置】页面" + "\n" +
@@ -1699,13 +1795,13 @@ onkeyup="this.value=this.value.replace(/[^\\d][-]/g,\'\')" onafterpaste="this.va
                 "  3. 打开 “下载前询问每个文件的保存位置” 右侧按钮");
         }
     });
-    $(document).on('click', '#mode-download', function() {
+    $(document).on('click', '#mode-download', function () {
         document.getElementById("module-1").style.display = "block";
         $("#module-2, #confirm, #mode-click").css("display", "none");
         //         $("#mode-download").css({"background-color":"#0BD","color":"#fff"});
         $("#modeName").text("批量下载");
         if (browserType() == "Chrome") {
-            newTabAlert("offDownload", "chrome://settings/downloads", 'active', function() {
+            newTabAlert("offDownload", "chrome://settings/downloads", 'active', function () {
                 alert("操作提醒：\n" + "务必操作，否则请不要向下执行任何操作！！！\n" + "\n" +
                     "（识别到您使用的是Chrome浏览器）" + "\n\n" +
                     "   已自动为你打开浏览器【设置】页面" + "\n" +
@@ -1720,7 +1816,7 @@ onkeyup="this.value=this.value.replace(/[^\\d][-]/g,\'\')" onafterpaste="this.va
                 "  3. 关闭 “下载前询问每个文件的保存位置” 右侧按钮");
         }
     });
-    $(document).on('click', '#reset', function() {
+    $(document).on('click', '#reset', function () {
         $("#module-1,#module-2").css("display", "none");
         $("#confirm, #downloadSrc, #mode-click, #mode-download").css("display", "inline");
         //         $("#mode-download, #mode-click").css({"background-color":"#fff","color":"#000"});
@@ -1728,19 +1824,19 @@ onkeyup="this.value=this.value.replace(/[^\\d][-]/g,\'\')" onafterpaste="this.va
 
     });
     // 刷新
-    $(document).on('click', '#refresh', function() {
+    $(document).on('click', '#refresh', function () {
         location.reload()
     })
     //资源栏总数
     var srcBarSum = 0;
     //   给分栏添加 id 易于按栏操作
-    $(".res-row-box").each(function(i, e) {
+    $(".res-row-box").each(function (i, e) {
         $(this).attr('id', 'id_' + i);
         srcBarSum = i + 1;
     });
     //存储所有被选择的资源栏 id
     var chosenIDs = [];
-    $(document).on('click', '#choose', function() {
+    $(document).on('click', '#choose', function () {
         //获取点击时按钮值
         var val = $("#choose").val();
         //接受用户输入的id 字符串
@@ -1790,7 +1886,7 @@ onkeyup="this.value=this.value.replace(/[^\\d][-]/g,\'\')" onafterpaste="this.va
     });
 
     // reset  bar_index
-    $('#bar_index').bind("input propertychange", function(event) {
+    $('#bar_index').bind("input propertychange", function (event) {
         $("#choose").val("确认选择");
         $("#choose").css('background-color', 'rgba(0, 151, 179,0.7)');
     });
@@ -1804,7 +1900,7 @@ onkeyup="this.value=this.value.replace(/[^\\d][-]/g,\'\')" onafterpaste="this.va
     /**
      * 根据指定的所有资源栏id，进行模拟点击
      */
-    $(document).on('click', '#confirm', function() {
+    $(document).on('click', '#confirm', function () {
         batchForMoreSrcBars("模拟点击", chosenIDs)
     });
 
@@ -1812,7 +1908,7 @@ onkeyup="this.value=this.value.replace(/[^\\d][-]/g,\'\')" onafterpaste="this.va
      * 根据指定的所有资源栏id，进行批量下载
      *
      */
-    $(document).on('click', '#downloadSrc', function() {
+    $(document).on('click', '#downloadSrc', function () {
         batchForMoreSrcBars("批量下载", chosenIDs)
     });
 
@@ -1820,7 +1916,7 @@ onkeyup="this.value=this.value.replace(/[^\\d][-]/g,\'\')" onafterpaste="this.va
      * 模拟正序点击全部资源
      *
      */
-    $(document).on('click', '.forward', function() {
+    $(document).on('click', '#forward', function () {
         clickAll("true")
     });
 
@@ -1828,7 +1924,7 @@ onkeyup="this.value=this.value.replace(/[^\\d][-]/g,\'\')" onafterpaste="this.va
      * 模拟倒序点击全部资源
      *
      */
-    $(document).on('click', '.reverse', function() {
+    $(document).on('click', '#reverse', function () {
         clickAll("false")
     });
 

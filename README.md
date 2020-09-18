@@ -1,4 +1,4 @@
-[![](https://img.shields.io/badge/version-v1.8.0-blue)]()[![](https://img.shields.io/badge/downloads-9k-green)](https://greasyfork.org/en/scripts/390978-%E4%BA%91%E7%8F%AD%E8%AF%BE%E9%AB%98%E6%95%88%E5%8A%A9%E6%89%8B)
+[![](https://img.shields.io/badge/version-v1.8.0-blue)]()	[![](https://img.shields.io/badge/downloads-9k-green)](https://greasyfork.org/en/scripts/390978-%E4%BA%91%E7%8F%AD%E8%AF%BE%E9%AB%98%E6%95%88%E5%8A%A9%E6%89%8B)
 
 # Mosoteach Helper
 
@@ -33,6 +33,11 @@
 ----
 
 ## 更新日志
+
+### Version 1.85
+1. 修复连播视频时数量错误BUG
+2. 重构快捷键视图生成代码
+3. Add Statistical Analysis System
 
 ### Version 1.80
 1. 新增视频控件：新增视频倍速控件(支持 倍速递加、递减；倍速重置；一键最佳倍速；视频快进、快退)  
