@@ -3,11 +3,11 @@
 // @name:zh-CN   云班课高效助手
 // @author       bellamy.n.h
 // @namespace    http://tampermonkey.net/
-// @version      1.85
-// @description  【高效再升级😃！高效使用云班课，一个脚本就够了！😎】 【🧡视频倍速：新增视频倍速控件(支持 倍速递加、递减；倍速重置；一键最佳倍速；视频快进、快退)】、【💛视频连播：新版视频连播功能，支持从当前视频开始连播（配合视频控件，体验更好）】、【💙快捷键：新增快捷键系统,常用功能已都加入，高效更进一步】、【💚资源处理：批量点击、下载、批处理】 
+// @version      1.86
+// @description  【高效再升级😃！高效使用云班课，一个脚本就够了！😎】 【🧡视频倍速：新增视频倍速控件(支持 倍速递加、递减；倍速重置；一键最佳倍速；视频快进、快退)】、【💛视频连播：新版视频连播功能，支持从当前视频开始连播（配合视频控件，体验更佳）】、【💙快捷键：新增快捷键系统,常用功能都已加入，高效更进一步】、【💚资源处理：批量点击、下载、批处理】 
 // @match        https://www.mosoteach.cn/web/index.php*
 // @include      *://www.mosoteach.cn/web/index.php*
-// @note         Version 1.85    修复连播视频时数量错误BUG；重构快捷键视图生成代码，降冗余；Add Statistical Analysis System；限制对快捷键的频繁操作。
+// @note         Version 1.85 —— 1.86    修复连播视频时数量错误BUG；重构快捷键视图生成代码，降冗余；Add Statistical Analysis System；限制对快捷键的频繁操作；特殊处理部分高频使用的快捷键。
 // @note         Version 1.80    😁【新增视频倍速控件(支持 倍速递加、递减；倍速重置；一键最佳倍速；视频快进、快退)】、【新版视频连播功能，支持从当前视频开始连播（配合视频控件，可达到极度自由）】、【新增快捷键系统,常用功能已都加入，高效更进一步】、【修复模拟点击/下载失效Bug】、【限制全部连播最大速度为8倍】
 // @note         Version 1.70    视频最高16倍速连播；调用系统通知，反馈更佳；
 // @note         Version 1.65    偷偷改了些小Bug 🤭，使连播更顺畅。下个版本上16倍速连播喽😊
@@ -532,7 +532,7 @@ $(function () {
     //将所有视频资源存入数组，以作点击使用
     let a = $("div[data-mime='video']");
     let tempArr = Object.keys(a);
-    let tpArr = tempArr.slice(0, tempArr.length - 2 );
+    let tpArr = tempArr.slice(0, tempArr.length - 2);
     tpArr.forEach((key) => {
         //console.log(key, a[key]);
         arr.push(a[key]);
@@ -1258,15 +1258,15 @@ $(function () {
         ['结束正常连播', 'shift + v'],
         ['开始全部连播', 'shift + z'],
         ['结束全部连播', 'shift + x']
-    
+
     ];
     //获取 快捷键列表
-    function getKeyMapView(){
-        let viewArr =  keyboardEvent.keyMapDetail.map((item)=>{
-            return  `<p class="content-center"><span class="keyMap-name"> ${item[0]} </span> <span class="keyMap-value"> ${item[1]} </span></p>`
+    function getKeyMapView() {
+        let viewArr = keyboardEvent.keyMapDetail.map((item) => {
+            return `<p class="content-center"><span class="keyMap-name"> ${item[0]} </span> <span class="keyMap-value"> ${item[1]} </span></p>`
         });
         return viewArr.join(' ');
-    } 
+    }
 
     keyboardEvent.keyMapInfo = `
     <div id="keyMapInfo">
@@ -1280,12 +1280,15 @@ $(function () {
      * bind keyboard eventListener to document
      */
     let lastTimeStamp = 0;
+    let isSameKey = false;
+    let lastKeyCode = 0;
+    let recent2KeysInterval = 0;
     $(document).bind('keypress', function (event) {
         /* 禁止频繁操作 */
         let curTimeStamp = event.timeStamp;
-        let interval = curTimeStamp - lastTimeStamp;
+        recent2KeysInterval = curTimeStamp - lastTimeStamp;
         lastTimeStamp = curTimeStamp;
-        if( interval < 250){
+        if (recent2KeysInterval < 200) {
             layer.msg("操作过于频繁");
             return;
         }
@@ -1296,6 +1299,11 @@ $(function () {
         let ctrlKey = event.ctrlKey;
         let shiftKey = event.shiftKey;
         //console.log("keyCode:" + keyCode);
+
+        /* 记录最近两次按下是否为同一个 key */
+        isSameKey = lastKeyCode == keyCode ? true : false;
+        lastKeyCode = keyCode;
+
 
         let lowercase = changeKeycode(getAllValuesByKeyname('key').slice(0, 6), true);
         // console.log('[119, 115, 97, 100, 114, 103]:' + lowercase);
@@ -1374,10 +1382,24 @@ $(function () {
         let value = item.value;
         let num = (video.playbackRate).toFixed(1);
 
-        // send a record 
+        /**
+         * send a record ( special Keys )
+         */
         if (keyboardEventMap.has(action)) {
-            record(keyboardEventMap.get(action))
+
+            if (
+                !(specialKeyboardEventMap.has(action)
+                    && isSameKey
+                    && recent2KeysInterval < statConfig.specialKeysInterval)
+            ) {
+                // console.log('not special keys')
+                // console.log(specialKeyboardEventMap.has(action));
+                // console.log(isSameKey);
+                // console.log(recent2KeysInterval);
+                record(keyboardEventMap.get(action))
+            }
         }
+
 
         if (action == 'slower') {
 
@@ -1489,7 +1511,7 @@ $(function () {
     /**********************************
      * statistics
      */
-    var meta= '<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"/>';
+    var meta = '<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"/>';
     $("head").prepend(meta);
     const clickEventMap = new Map([
         ['mode-click', 1],
@@ -1523,8 +1545,17 @@ $(function () {
         ['playAll', 24],
         ['stopPlayAll', 25]
     ]);
+    // ?s 内的操作记为 1 次 有效记录
+    const specialKeyboardEventMap = new Map([
+        ['faster', 14],
+        ['slower', 15],
+        ['rewind', 16],
+        ['advance', 17],
+    ]);
     let statConfig = {
         recordURL: config.base + '/hits/saveOrUpdateUsePostWithoutCORS',
+        //? s 内记 1 
+        specialKeysInterval: 5000
     }
     let record = (fcId) => {
 
@@ -1538,10 +1569,10 @@ $(function () {
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
             }
-        }).then((response)=>{
+        }).then((response) => {
             //succ
             console.log("succ")
-        }).catch((error)=>{
+        }).catch((error) => {
             //err
             console.log("err")
         });
