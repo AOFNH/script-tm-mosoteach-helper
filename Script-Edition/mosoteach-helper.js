@@ -3,11 +3,11 @@
 // @name:zh-CN   云班课高效助手
 // @author       bellamy.n.h
 // @namespace    http://tampermonkey.net/
-// @version      1.86
+// @version      1.87
 // @description  【高效再升级😃！高效使用云班课，一个脚本就够了！😎】 【🧡视频倍速：新增视频倍速控件(支持 倍速递加、递减；倍速重置；一键最佳倍速；视频快进、快退)】、【💛视频连播：新版视频连播功能，支持从当前视频开始连播（配合视频控件，体验更佳）】、【💙快捷键：新增快捷键系统,常用功能都已加入，高效更进一步】、【💚资源处理：批量点击、下载、批处理】 
 // @match        https://www.mosoteach.cn/web/index.php*
 // @include      *://www.mosoteach.cn/web/index.php*
-// @note         Version 1.85 —— 1.86    修复连播视频时数量错误BUG；重构快捷键视图生成代码，降冗余；Add Statistical Analysis System；限制对快捷键的频繁操作；特殊处理部分高频使用的快捷键。
+// @note         Version 1.85 —— 1.87    修复连播视频时数量错误BUG；重构快捷键视图生成代码，降冗余；Add Statistical Analysis System；限制对快捷键的频繁操作；特殊处理部分高频使用的快捷键；Fix Some Bugs。
 // @note         Version 1.80    😁【新增视频倍速控件(支持 倍速递加、递减；倍速重置；一键最佳倍速；视频快进、快退)】、【新版视频连播功能，支持从当前视频开始连播（配合视频控件，可达到极度自由）】、【新增快捷键系统,常用功能已都加入，高效更进一步】、【修复模拟点击/下载失效Bug】、【限制全部连播最大速度为8倍】
 // @note         Version 1.70    视频最高16倍速连播；调用系统通知，反馈更佳；
 // @note         Version 1.65    偷偷改了些小Bug 🤭，使连播更顺畅。下个版本上16倍速连播喽😊
@@ -1521,7 +1521,7 @@ $(function () {
         ['choose', 5],
         ['confirm', 7],
         ['downloadSrc', 8],
-        ['download-res', 9],
+        ['download-res-btn', 9],
         ['forward', 10],
         ['reverse', 11],
         ['continuousPlayAll', 26],
@@ -1580,6 +1580,16 @@ $(function () {
 
     window.addEventListener("click", (event) => {
         let id = event.target.id;
+        if (clickEventMap.has(id)) {
+            record(clickEventMap.get(id))
+        }
+    });
+    $(document).on('click','#forward, #reverse, #download-res-btn, .download-res-button ', (event) => {
+        let id = event.target.id;
+        let classNames = event.target.className;
+        if( classNames.includes('download-res-button')){
+            id = 'download-res-btn';
+        }
         if (clickEventMap.has(id)) {
             record(clickEventMap.get(id))
         }
@@ -1684,12 +1694,12 @@ background-color:rgba(204, 0, 0,0.6);
     //为每个资源添加下载按钮
     $(".res-row-open-enable").each(function () {
         if ($(this).find(".download-res-button").length > 0) return; //如果已经存在下载按钮（例如mp3），则不再添加
-        $(this).find("ul").html('<li id="download-res" class="download-ress download-res-button">下载</li>' + $(this).find("ul").html());
+        $(this).find("ul").html('<li id="download-res-btn" class="download-ress download-res-button">下载</li>' + $(this).find("ul").html());
         // $(this).find("ul").html('<li id="forward">正序点击</li>' + $(this).find("ul").html());
         // $(this).find("ul").html('<li id="reverse">倒序点击</li>' + $(this).find("ul").html());
     });
     //单个资源下载
-    $(document).on('click', '#download-res', function () {
+    $(document).on('click', '#download-res-btn', function () {
         var resHref = $(this).parents(".res-row-open-enable").attr('data-href');
         window.open(resHref);
     });
@@ -1866,7 +1876,12 @@ onkeyup="this.value=this.value.replace(/[^\\d][-]/g,\'\')" onafterpaste="this.va
     });
     // 刷新
     $(document).on('click', '#refresh', function () {
-        location.reload()
+        layer.msg('即将刷新...', {
+            time: 2500 //如果不配置，默认是3秒
+          }, function(){
+            location.reload()
+          }); 
+        
     })
     //资源栏总数
     var srcBarSum = 0;
