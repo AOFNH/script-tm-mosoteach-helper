@@ -1,4 +1,4 @@
-[![](https://img.shields.io/badge/version-v1.8.7-blue)]()	[![](https://img.shields.io/badge/downloads-9k-green)](https://greasyfork.org/en/scripts/390978-%E4%BA%91%E7%8F%AD%E8%AF%BE%E9%AB%98%E6%95%88%E5%8A%A9%E6%89%8B)
+[![](https://img.shields.io/badge/version-v1.8.8-blue)]()	[![](https://img.shields.io/badge/downloads-13k-green)](https://greasyfork.org/en/scripts/390978-%E4%BA%91%E7%8F%AD%E8%AF%BE%E9%AB%98%E6%95%88%E5%8A%A9%E6%89%8B)
 
 # Mosoteach Helper
 
@@ -33,6 +33,11 @@
 ----
 
 ## 更新日志
+
+### Version 1.88
+1. 修复视频播放界面连播相关按钮点击无效
+2. 修复对全局键盘的频繁操作误判，改为只判断快捷键的频繁操作
+3. 修改视频快进、视频快退的速度为一次前进或后退5s
 
 ### Version 1.85 — 1.87
 1. 修复连播视频时数量错误BUG

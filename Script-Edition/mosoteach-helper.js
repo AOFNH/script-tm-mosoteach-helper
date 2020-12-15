@@ -3,10 +3,11 @@
 // @name:zh-CN   云班课高效助手
 // @author       bellamy.n.h
 // @namespace    http://tampermonkey.net/
-// @version      1.87
+// @version      1.88
 // @description  【高效再升级😃！高效使用云班课，一个脚本就够了！😎】 【🧡视频倍速：新增视频倍速控件(支持 倍速递加、递减；倍速重置；一键最佳倍速；视频快进、快退)】、【💛视频连播：新版视频连播功能，支持从当前视频开始连播（配合视频控件，体验更佳）】、【💙快捷键：新增快捷键系统,常用功能都已加入，高效更进一步】、【💚资源处理：批量点击、下载、批处理】 
 // @match        https://www.mosoteach.cn/web/index.php*
 // @include      *://www.mosoteach.cn/web/index.php*
+// @note         Version 1.88    修复视频播放界面点击连播相关按钮无效；修复对全局键盘的频繁操作误判，改为只判断快捷键的频繁操作；修改视频快进、视频快退的速度为一次前进或后退5s；
 // @note         Version 1.85 —— 1.87    修复连播视频时数量错误BUG；重构快捷键视图生成代码，降冗余；Add Statistical Analysis System；限制对快捷键的频繁操作；特殊处理部分高频使用的快捷键；Fix Some Bugs。
 // @note         Version 1.80    😁【新增视频倍速控件(支持 倍速递加、递减；倍速重置；一键最佳倍速；视频快进、快退)】、【新版视频连播功能，支持从当前视频开始连播（配合视频控件，可达到极度自由）】、【新增快捷键系统,常用功能已都加入，高效更进一步】、【修复模拟点击/下载失效Bug】、【限制全部连播最大速度为8倍】
 // @note         Version 1.70    视频最高16倍速连播；调用系统通知，反馈更佳；
@@ -580,10 +581,10 @@ $(function () {
         // ').insertAfter(".mejs__fullscreen-button");
 
         $('<div id="helper-btn" class="content-center" style="background-color:rgba(255, 255, 255, 0.5);">\
-            <span id="continuousPlayAll" class="video-btn content-center"><i class="fa fa-play-circle" aria-hidden="true" style="cursor:pointer"></i></span>\
-            <span id="stopContinuousPlayAll" class="video-btn content-center"><i class="fa fa-stop-circle" aria-hidden="true" style="cursor:pointer"></i></span>\
-            <span id="continuousPlayPart"  class="video-btn content-center"><i class="fa fa-play" aria-hidden="true" style="cursor:pointer"></i></span>\
-            <span id="stopContinuousPlayPart" class="video-btn content-center"><i class="fa fa-stop" aria-hidden="true" style="cursor:pointer"></i></span>\
+            <span class="video-btn content-center"><i id="continuousPlayAll" class="fa fa-play-circle" aria-hidden="true" style="cursor:pointer"></i></span>\
+            <span class="video-btn content-center"><i id="stopContinuousPlayAll" class="fa fa-stop-circle" aria-hidden="true" style="cursor:pointer"></i></span>\
+            <span class="video-btn content-center"><i id="continuousPlayPart" class="fa fa-play" aria-hidden="true" style="cursor:pointer"></i></span>\
+            <span class="video-btn content-center"><i id="stopContinuousPlayPart" class="fa fa-stop" aria-hidden="true" style="cursor:pointer"></i></span>\
             </div>').insertBefore("#preview-video");
 
         //For all
@@ -1113,14 +1114,14 @@ $(function () {
     keyboardEvent.keyBindings.push({
         action: "rewind",
         key: Number(keyboardEvent.rewindKeyCode) || 65,
-        value: Number(keyboardEvent.rewindTime) || 10,
+        value: Number(keyboardEvent.rewindTime) || 5,
         force: false,
         predefined: true
     }); // default: A
     keyboardEvent.keyBindings.push({
         action: "advance",
         key: Number(keyboardEvent.advanceKeyCode) || 68,
-        value: Number(keyboardEvent.advanceTime) || 10,
+        value: Number(keyboardEvent.advanceTime) || 5,
         force: false,
         predefined: true
     }); // default: D
@@ -1283,15 +1284,29 @@ $(function () {
     let isSameKey = false;
     let lastKeyCode = 0;
     let recent2KeysInterval = 0;
+    let requiredInterval = 200;
+
+    /**
+     * 如果连续两次操作同一个快捷键的时间间隔小于要求的时间间隔，则不执行
+     */
+    function isFrequent(interval, requiredInterval){
+        if (isSameKey && (interval < requiredInterval) ) {
+            layer.msg("操作过于频繁");
+            return;
+        }
+    }
+
     $(document).bind('keypress', function (event) {
         /* 禁止频繁操作 */
         let curTimeStamp = event.timeStamp;
         recent2KeysInterval = curTimeStamp - lastTimeStamp;
         lastTimeStamp = curTimeStamp;
-        if (recent2KeysInterval < 200) {
-            layer.msg("操作过于频繁");
-            return;
-        }
+        
+        //此处写法会导致对所有keydown生效
+        // if (recent2KeysInterval < 200) {
+        //     layer.msg("操作过于频繁");
+        //     return;
+        // }
 
         /* Act on the event */
         let keyCode = event.keyCode;
@@ -1377,6 +1392,13 @@ $(function () {
      * @param  {[type]} video [description]
      */
     function doAction(item, video) {
+
+        //避免频繁的快捷键操作（只对存在的快捷键有效）
+        //如果连续两次操作同一个快捷键的时间间隔小于要求的时间间隔，则操作无效
+        if (isSameKey && (recent2KeysInterval < requiredInterval) ) {
+            layer.msg("操作过于频繁");
+            return;
+        }
 
         let action = item.action;
         let value = item.value;
