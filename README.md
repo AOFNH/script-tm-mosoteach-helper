@@ -1,4 +1,4 @@
-[![](https://img.shields.io/badge/version-v1.8.8-blue)]()	[![](https://img.shields.io/badge/downloads-13k-green)](https://greasyfork.org/en/scripts/390978-%E4%BA%91%E7%8F%AD%E8%AF%BE%E9%AB%98%E6%95%88%E5%8A%A9%E6%89%8B)
+[![](https://img.shields.io/badge/version-v1.8.8-blue)]()	[![](https://img.shields.io/badge/downloads-25k-green)](https://greasyfork.org/en/scripts/390978-%E4%BA%91%E7%8F%AD%E8%AF%BE%E9%AB%98%E6%95%88%E5%8A%A9%E6%89%8B)
 
 # Mosoteach Helper
 
@@ -27,7 +27,7 @@
 
 ## 功能快捷键一览表
 
-![img](https://greasyfork.org/system/screenshots/screenshots/000/021/674/original/360%E6%88%AA%E5%9B%BE1793072111411798.jpg?1592266589)
+![img](https://greasyfork.s3.us-east-2.amazonaws.com/30bf4x7h4g9rd9zls4h2qsccq9mv)
 
 
 ----
