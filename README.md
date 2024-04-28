@@ -1,4 +1,4 @@
-[![](https://img.shields.io/badge/version-v1.8.8-blue)]()	[![](https://img.shields.io/badge/downloads-25k-green)](https://greasyfork.org/en/scripts/390978-%E4%BA%91%E7%8F%AD%E8%AF%BE%E9%AB%98%E6%95%88%E5%8A%A9%E6%89%8B)
+[![version](https://img.shields.io/greasyfork/v/390978-云班课高效助手)](https://greasyfork.org/en/scripts/390978-云班课高效助手)	[![greasyfork-total-downloads](https://img.shields.io/greasyfork/dt/390978-云班课高效助手?style=flat&logo=greasyfork)](https://greasyfork.org/en/scripts/390978-云班课高效助手)
 
 # Mosoteach Helper
 
